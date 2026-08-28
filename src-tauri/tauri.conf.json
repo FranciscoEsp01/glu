@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "Glu",
+  "version": "0.1.0",
+  "identifier": "com.glu.meetingai",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Glu — AI Meeting Assistant",
+        "label": "main",
+        "width": 1080,
+        "height": 700,
+        "minWidth": 860,
+        "minHeight": 540,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": true
+      },
+      {
+        "title": "Glu Pill",
+        "label": "floating-pill",
+        "width": 380,
+        "height": 60,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
