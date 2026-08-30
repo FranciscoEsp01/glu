@@ -58,8 +58,8 @@ export const FloatingWidget: React.FC = () => {
       <style>
         {`
           @keyframes slideDownFace {
-            0% { transform: translateY(-12px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
+            0% { transform: translateY(-40px); }
+            100% { transform: translateY(0); }
           }
           .animate-face-slide {
             animation: slideDownFace 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -142,9 +142,9 @@ export const FloatingWidget: React.FC = () => {
         </div>
 
         {/* ZONA CENTRAL (240px) */}
-        <div className="flex items-center justify-center w-[240px] h-full relative">
+        <div className="flex items-center justify-center w-[240px] h-full relative overflow-hidden">
           {showFace ? (
-             <div className="animate-in fade-in zoom-in duration-300">
+             <div className="flex items-center justify-center w-[40px] h-[40px]">
                <FaceSVG />
              </div>
           ) : (
