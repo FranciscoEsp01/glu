@@ -57,6 +57,7 @@ interface MeetingStoreState {
   setCurrentNoteInput: (val: string) => void;
   setRecordingTemplate: (t: TemplateType) => void;
   setRecordingTitle: (title: string) => void;
+  togglePauseRecording: () => void;
 
   // Settings update
   updateSettings: (updates: Partial<AISettings>) => void;
@@ -352,6 +353,7 @@ export const useMeetingStore = create<MeetingStoreState>((set, get) => ({
   setCurrentNoteInput: (val) => set({ currentNoteInput: val }),
   setRecordingTemplate: (t) => set({ recordingTemplate: t }),
   setRecordingTitle: (title) => set({ recordingTitle: title }),
+  togglePauseRecording: () => set((s) => ({ isPaused: !s.isPaused })),
 
   updateSettings: (updates) => {
     set((state) => {

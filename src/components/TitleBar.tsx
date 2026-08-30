@@ -3,7 +3,6 @@ import { useMeetingStore } from '../store/useMeetingStore';
 import { 
   Sparkles, 
   Settings, 
-  Search, 
   Mic, 
   Square, 
   Moon, 
@@ -18,7 +17,6 @@ export const TitleBar: React.FC = () => {
     viewMode, 
     setViewMode, 
     toggleSettings, 
-    toggleCommandPalette, 
     toggleNewMeetingModal,
     settings,
     updateSettings,
@@ -37,53 +35,33 @@ export const TitleBar: React.FC = () => {
   };
 
   return (
-    <div className="h-11 w-full bg-white/70 dark:bg-[#12141a]/80 backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between px-4 select-none z-30 flex-shrink-0">
+    <div className="h-[44px] w-full bg-transparent flex items-center justify-between px-4 select-none z-30 flex-shrink-0 relative">
       {/* macOS Window Controls (Traffic Lights) */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 group mr-3">
-          <button 
-            title="Cerrar" 
-            className="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E] hover:opacity-80 transition-opacity flex items-center justify-center text-[8px] text-black/60 font-bold opacity-90"
-          >
-            <span className="opacity-0 group-hover:opacity-100">✕</span>
-          </button>
-          <button 
-            title="Minimizar a Floating Pill" 
-            onClick={() => setViewMode('floating_pill')}
-            className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123] hover:opacity-80 transition-opacity flex items-center justify-center text-[8px] text-black/60 font-bold opacity-90"
-          >
-            <span className="opacity-0 group-hover:opacity-100">−</span>
-          </button>
-          <button 
-            title="Pantalla Completa" 
-            className="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29] hover:opacity-80 transition-opacity flex items-center justify-center text-[8px] text-black/60 font-bold opacity-90"
-          >
-            <span className="opacity-0 group-hover:opacity-100">＋</span>
-          </button>
-        </div>
-
-        {/* Brand Icon & Name */}
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-sm shadow-indigo-500/20">
-            <Sparkles className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-xs font-semibold tracking-tight text-gray-800 dark:text-gray-200">
-            Glu <span className="font-normal text-gray-400 dark:text-gray-500">Meeting AI</span>
-          </span>
-        </div>
+      <div className="flex items-center gap-[8px] pl-[12px] absolute left-0">
+        <button 
+          title="Cerrar" 
+          className="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E] hover:opacity-80 transition-opacity flex items-center justify-center text-[8px] text-black/60 font-bold opacity-90"
+        >
+        </button>
+        <button 
+          title="Minimizar a Floating Pill" 
+          onClick={() => setViewMode('floating_pill')}
+          className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123] hover:opacity-80 transition-opacity flex items-center justify-center text-[8px] text-black/60 font-bold opacity-90"
+        >
+        </button>
+        <button 
+          title="Pantalla Completa" 
+          className="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29] hover:opacity-80 transition-opacity flex items-center justify-center text-[8px] text-black/60 font-bold opacity-90"
+        >
+        </button>
       </div>
 
-      {/* Center Action: Global Search & Shortcut Hint */}
-      <button
-        onClick={() => toggleCommandPalette(true)}
-        className="flex items-center gap-2 px-3 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-xs text-gray-500 dark:text-gray-400 transition-colors border border-black/[0.04] dark:border-white/[0.06]"
-      >
-        <Search className="w-3.5 h-3.5" />
-        <span>Buscar en reuniones...</span>
-        <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-white dark:bg-gray-800 shadow-sm font-mono border border-black/[0.08] dark:border-white/[0.1] text-gray-600 dark:text-gray-300">
-          ⌘K
-        </kbd>
-      </button>
+      {/* Center Title */}
+      <div className="flex-1 flex justify-center">
+         <span className="text-[13px] font-medium text-[#374151]">
+            AI Meeting Assistant
+         </span>
+      </div>
 
       {/* Right Controls */}
       <div className="flex items-center gap-2">

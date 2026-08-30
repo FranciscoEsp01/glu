@@ -64,7 +64,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const progressPercent = (currentPlaybackTime / Math.max(1, durationSec)) * 100;
 
   return (
-    <div className="w-full rounded-2xl bg-white/70 dark:bg-black/30 border border-black/[0.08] dark:border-white/[0.08] p-3.5 backdrop-blur-md shadow-sm flex flex-col gap-2.5">
+    <div className="w-full flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Play/Pause Button */}

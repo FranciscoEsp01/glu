@@ -60,7 +60,7 @@ export const App: React.FC = () => {
 
       {/* Main Native macOS Window View */}
       {viewMode === 'main' ? (
-        <div className="w-full h-full max-w-[1240px] max-h-[820px] rounded-2xl shadow-mac-window border border-black/10 dark:border-white/10 bg-white/90 dark:bg-[#12141c]/90 backdrop-blur-2xl flex flex-col overflow-hidden transition-all duration-300">
+        <div className="w-[1080px] h-[700px] rounded-[16px] shadow-2xl border border-black/10 bg-white/50 backdrop-blur-3xl flex flex-col overflow-hidden transition-all duration-300">
           {/* Title Bar */}
           <TitleBar />
 

@@ -1,17 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMeetingStore } from '../store/useMeetingStore';
-import { MEETING_TEMPLATES } from '../services/templates';
-import { 
-  Square, 
-  Maximize2, 
-  Sparkles, 
-  Check, 
-  ChevronDown
-} from 'lucide-react';
+import { Square, Mic, MicOff } from 'lucide-react';
 
 export const FloatingWidget: React.FC = () => {
   const {
     isRecording,
+    isPaused,
     recordingDurationSeconds,
     audioLevels,
     rapidNotes,
@@ -19,14 +13,28 @@ export const FloatingWidget: React.FC = () => {
     setCurrentNoteInput,
     addRapidNote,
     stopRecordingAndProcess,
-    recordingTemplate,
-    setRecordingTemplate,
-    setViewMode,
-    isProcessingAI,
+    togglePauseRecording,
   } = useMeetingStore();
 
   const [showNoteInput, setShowNoteInput] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
+  const [showFace, setShowFace] = useState(true);
+  const [isWinking, setIsWinking] = useState(false);
+
+  useEffect(() => {
+    if (isRecording && !isPaused) {
+      // Just started or resumed
+      setShowFace(true);
+      setIsWinking(true);
+      const winkTimer = setTimeout(() => {
+        setIsWinking(false);
+        setShowFace(false); // Transition to waveform
+      }, 1500);
+      return () => clearTimeout(winkTimer);
+    } else if (isPaused) {
+      setShowFace(true);
+      setIsWinking(false);
+    }
+  }, [isRecording, isPaused]);
 
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -44,151 +52,145 @@ export const FloatingWidget: React.FC = () => {
     }
   };
 
-  const template = MEETING_TEMPLATES[recordingTemplate];
+  // Carita SVG (Mascota)
+  const FaceSVG = () => (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="transition-opacity duration-300">
+      {/* Contorno Circular Abierto Estilo Apple */}
+      <circle cx="14" cy="14" r="11.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeDasharray="60 12"/>
+      
+      {/* Ojo Izquierdo */}
+      {isPaused ? (
+         <path d="M10 11.5 Q10 10 10 11.5" stroke="white" strokeWidth="1.25" strokeLinecap="round" fill="none" />
+      ) : (
+         <circle cx="10" cy="11.5" r="1.25" fill="white"/>
+      )}
+      
+      {/* Ojo Derecho (Guiño o normal) */}
+      {isWinking ? (
+        <path d="M16.5 11.5C17.2 10.5 18.5 10.5 19.2 11.5" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
+      ) : (
+        <circle cx="18" cy="11.5" r="1.25" fill="white"/>
+      )}
+      
+      {/* Nariz Minimalista */}
+      <path d="M14 10.5V14.5H12.8" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      
+      {/* Sonrisa */}
+      {isPaused ? (
+        <path d="M11 17.5 H17" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
+      ) : (
+        <path d="M10 17.5C11.5 19.5 16.5 19.5 18 17.5" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
+      )}
+    </svg>
+  );
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      {/* Rapid Note Expanded Popover */}
+    <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300">
+      
+      {/* Main Floating Pill (580x44) */}
+      <div 
+        className="w-[580px] h-[44px] rounded-[22px] flex items-center justify-between px-4 shadow-2xl relative"
+        style={{
+          background: 'rgba(255, 255, 255, 0.16)',
+          backdropFilter: 'blur(40px)',
+          WebkitBackdropFilter: 'blur(40px)',
+          border: '1px solid rgba(255, 255, 255, 0.3)'
+        }}
+      >
+        {/* ZONA IZQUIERDA (140px) */}
+        <div className="flex items-center gap-2 w-[140px]">
+          {isRecording && !isPaused ? (
+             <div className="relative flex items-center justify-center">
+               <div className="w-2 h-2 rounded-full bg-[#EF4444] animate-ping absolute" />
+               <div className="w-2 h-2 rounded-full bg-[#EF4444]" />
+             </div>
+          ) : (
+             <div className="w-2 h-2 rounded-full bg-gray-400" />
+          )}
+          <span className="font-mono text-[13px] font-semibold text-white tracking-wider">
+            {formatTimer(recordingDurationSeconds)}
+          </span>
+        </div>
+
+        {/* ZONA CENTRAL (240px) */}
+        <div className="flex items-center justify-center w-[240px] h-full relative">
+          {showFace ? (
+             <div className="animate-in fade-in zoom-in duration-300">
+               <FaceSVG />
+             </div>
+          ) : (
+            <div className="flex items-center gap-[3px] h-5 justify-center animate-in fade-in zoom-in duration-300">
+              {audioLevels.slice(0, 10).map((lvl, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    height: `${Math.max(4, lvl * 20)}px`,
+                  }}
+                  className="w-1 rounded-full bg-white transition-all duration-100"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ZONA DERECHA (160px) */}
+        <div className="flex items-center justify-end gap-2 w-[160px]">
+          <button
+            onClick={() => setShowNoteInput(!showNoteInput)}
+            className="h-[26px] px-3 rounded-[13px] text-[11px] text-white font-medium transition-colors hover:bg-white/30 relative"
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.20)' }}
+          >
+            Notas
+            {rapidNotes.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-indigo-500 text-[8px] flex items-center justify-center font-bold">
+                {rapidNotes.length}
+              </span>
+            )}
+          </button>
+          
+          <button
+            onClick={togglePauseRecording}
+            className={`w-[26px] h-[26px] rounded-full flex items-center justify-center transition-colors ${
+               isPaused ? 'bg-amber-500 hover:bg-amber-600' : 'bg-white/10 hover:bg-white/20'
+            }`}
+          >
+            {isPaused ? <MicOff className="w-3.5 h-3.5 text-white" /> : <Mic className="w-3.5 h-3.5 text-white" />}
+          </button>
+
+          <button
+            onClick={stopRecordingAndProcess}
+            className="w-[26px] h-[26px] rounded-full flex items-center justify-center bg-white/10 hover:bg-rose-500 hover:text-white transition-colors"
+          >
+            <Square className="w-3 h-3 text-white fill-current" />
+          </button>
+        </div>
+      </div>
+
+      {/* Rapid Note Popover */}
       {showNoteInput && (
-        <div className="w-80 glass-pill rounded-2xl p-3 shadow-2xl border border-white/20 text-white animate-in zoom-in-95 duration-150 flex flex-col gap-2">
+        <div className="w-[580px] bg-white/10 backdrop-blur-xl rounded-2xl p-3 shadow-2xl border border-white/20 text-white animate-in slide-in-from-top-2 duration-150 flex flex-col gap-2 mt-2">
           <div className="flex items-center justify-between text-[11px] text-gray-300">
-            <span className="font-semibold">✏️ Apunte Rápido en Vivo</span>
-            <kbd className="text-[9px] px-1 rounded bg-white/10 font-mono">Enter para guardar</kbd>
+            <span className="font-semibold">✏️ Apunte Rápido</span>
+            <kbd className="text-[9px] px-1 rounded bg-white/10 font-mono">Enter</kbd>
           </div>
           <input
             type="text"
             autoFocus
-            placeholder="Ej: Revisar con Juan lo del bug en auth..."
+            placeholder="Escribe una nota rápida..."
             value={currentNoteInput}
             onChange={(e) => setCurrentNoteInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-xs text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-white/30"
           />
           {rapidNotes.length > 0 && (
-            <div className="text-[10px] text-gray-400 max-h-20 overflow-y-auto space-y-1 pt-1 border-t border-white/10">
+            <div className="text-[10px] text-gray-300 max-h-24 overflow-y-auto space-y-1 pt-1 border-t border-white/10">
               {rapidNotes.map((n, i) => (
-                <div key={i} className="line-clamp-1 text-gray-300">• {n}</div>
+                <div key={i} className="line-clamp-1">• {n}</div>
               ))}
             </div>
           )}
         </div>
       )}
-
-      {/* Main Floating Pill */}
-      <div className="glass-pill h-12 px-4 rounded-full shadow-2xl flex items-center gap-3.5 select-none border border-white/20 transition-all hover:border-white/30 backdrop-blur-3xl">
-        {/* Left: Recording Status & Pulse */}
-        <div className="flex items-center gap-2">
-          {isRecording ? (
-            <div className="relative flex items-center justify-center">
-              <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping absolute" />
-              <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-            </div>
-          ) : (
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-          )}
-
-          <span className="font-mono text-xs font-bold text-white tracking-wider">
-            {formatTimer(recordingDurationSeconds)}
-          </span>
-        </div>
-
-        <div className="w-[1px] h-5 bg-white/15" />
-
-        {/* Center: Live Waveform Visualizer */}
-        <div className="flex items-center gap-[3px] h-5 w-20 justify-center">
-          {audioLevels.slice(0, 10).map((lvl, idx) => (
-            <div
-              key={idx}
-              style={{
-                height: `${Math.max(4, lvl * 20)}px`,
-              }}
-              className="w-1 rounded-full bg-indigo-400/90 transition-all duration-100"
-            />
-          ))}
-        </div>
-
-        <div className="w-[1px] h-5 bg-white/15" />
-
-        {/* Rapid Note Trigger Button */}
-        <button
-          onClick={() => setShowNoteInput(!showNoteInput)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-            showNoteInput
-              ? 'bg-indigo-500 text-white'
-              : 'bg-white/10 hover:bg-white/20 text-gray-200'
-          }`}
-          title="Tomar apunte rápido (Cmd+Shift+N)"
-        >
-          <span>✏️ Nota</span>
-          {rapidNotes.length > 0 && (
-            <span className="w-4 h-4 rounded-full bg-indigo-600 text-[9px] flex items-center justify-center font-bold">
-              {rapidNotes.length}
-            </span>
-          )}
-        </button>
-
-        {/* Template Quick Selector */}
-        <div className="relative">
-          <button
-            onClick={() => setShowTemplates(!showTemplates)}
-            className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[11px] text-gray-300 transition-all"
-            title="Cambiar plantilla de IA"
-          >
-            <span>{template.name.split(' ')[0]}</span>
-            <ChevronDown className="w-3 h-3 text-gray-400" />
-          </button>
-
-          {showTemplates && (
-            <div className="absolute bottom-12 right-0 w-52 glass-pill rounded-2xl p-1.5 shadow-2xl border border-white/20 text-white animate-in zoom-in-95 duration-100 flex flex-col gap-1 z-50">
-              {Object.values(MEETING_TEMPLATES).map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setRecordingTemplate(t.id);
-                    setShowTemplates(false);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium flex items-center justify-between ${
-                    recordingTemplate === t.id
-                      ? 'bg-indigo-600 text-white'
-                      : 'hover:bg-white/10 text-gray-300'
-                  }`}
-                >
-                  <span>{t.name}</span>
-                  {recordingTemplate === t.id && <Check className="w-3.5 h-3.5" />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="w-[1px] h-5 bg-white/15" />
-
-        {/* Finish Recording / Stop Button */}
-        {isProcessingAI ? (
-          <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-medium animate-pulse">
-            <Sparkles className="w-3.5 h-3.5 animate-spin" />
-            <span>Sintetizando...</span>
-          </div>
-        ) : (
-          <button
-            onClick={() => stopRecordingAndProcess()}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold shadow-md transition-all active:scale-95"
-            title="Finalizar reunión y generar resumen (Cmd+Shift+R)"
-          >
-            <Square className="w-3 h-3 fill-current" />
-            <span>Fin</span>
-          </button>
-        )}
-
-        {/* Maximize to full macOS window */}
-        <button
-          onClick={() => setViewMode('main')}
-          className="p-1 text-gray-400 hover:text-white transition-colors"
-          title="Expandir a Visualizador de Reuniones completo"
-        >
-          <Maximize2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
     </div>
   );
 };
