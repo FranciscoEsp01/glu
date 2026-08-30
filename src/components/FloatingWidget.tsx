@@ -18,21 +18,17 @@ export const FloatingWidget: React.FC = () => {
 
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showFace, setShowFace] = useState(true);
-  const [isWinking, setIsWinking] = useState(false);
 
   useEffect(() => {
     if (isRecording && !isPaused) {
       // Just started or resumed
       setShowFace(true);
-      setIsWinking(true);
       const winkTimer = setTimeout(() => {
-        setIsWinking(false);
         setShowFace(false); // Transition to waveform
       }, 1500);
       return () => clearTimeout(winkTimer);
     } else if (isPaused) {
       setShowFace(true);
-      setIsWinking(false);
     }
   }, [isRecording, isPaused]);
 
@@ -54,48 +50,87 @@ export const FloatingWidget: React.FC = () => {
 
   // Carita SVG (Mascota)
   const FaceSVG = () => (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Contorno Circular Abierto Estilo Apple */}
-      <circle cx="14" cy="14" r="11.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeDasharray="60 12"/>
-      
-      {/* Ojo Izquierdo */}
-      <path 
-        d="M10 11.5 Q10 10 10 11.5" stroke="white" strokeWidth="1.25" strokeLinecap="round" fill="none" 
-        className={`transition-opacity duration-200 ${isPaused ? 'opacity-100' : 'opacity-0'}`} 
-      />
-      <circle cx="10" cy="11.5" r="1.25" fill="white" 
-        className={`transition-opacity duration-200 ${isPaused ? 'opacity-0' : 'opacity-100'}`} 
-      />
-      
-      {/* Ojo Derecho (Guiño o normal) */}
-      <circle cx="18" cy="11.5" r="1.25" fill="white" 
-        className={`transition-opacity duration-200 ${isWinking ? 'opacity-0' : 'opacity-100'}`} 
-      />
-      <path 
-        d="M16.5 11.5C17.2 10.5 18.5 10.5 19.2 11.5" 
-        stroke="white" strokeWidth="1.75" strokeLinecap="round" fill="none"
-        style={{
-          strokeDasharray: '10px',
-          strokeDashoffset: isWinking ? '0px' : '10px'
-        }}
-        className={`transition-all duration-300 ease-out ${isWinking ? 'opacity-100' : 'opacity-0'}`}
-      />
-      
-      {/* Nariz Minimalista */}
-      <path d="M14 10.5V14.5H12.8" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-      
-      {/* Sonrisa */}
-      <path d="M11 17.5 H17" stroke="white" strokeWidth="1.75" strokeLinecap="round" 
-        className={`transition-opacity duration-200 ${isPaused ? 'opacity-100' : 'opacity-0'}`} 
-      />
-      <path d="M10 17.5C11.5 19.5 16.5 19.5 18 17.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" 
-        className={`transition-opacity duration-200 ${isPaused ? 'opacity-0' : 'opacity-100'}`} 
-      />
-    </svg>
+    <>
+      <style>
+        {`
+          @keyframes faceDropIn {
+            0% { transform: translateY(-40px); opacity: 0; }
+            30% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(0); opacity: 1; }
+          }
+          .face-drop {
+            animation: faceDropIn 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+          
+          /* El guiño ocurre entre 40% y 80% de la animación (es decir, entre 0.6s y 1.2s) */
+          @keyframes winkDraw {
+            0%, 40% { stroke-dashoffset: 10px; opacity: 0; }
+            45%, 80% { stroke-dashoffset: 0px; opacity: 1; }
+            85%, 100% { stroke-dashoffset: 10px; opacity: 0; }
+          }
+          .wink-draw {
+            animation: winkDraw 1.5s ease-out forwards;
+          }
+
+          @keyframes hideEye {
+            0%, 40% { opacity: 1; }
+            45%, 80% { opacity: 0; }
+            85%, 100% { opacity: 1; }
+          }
+          .hide-eye {
+            animation: hideEye 1.5s ease-out forwards;
+          }
+        `}
+      </style>
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="face-drop">
+        {/* Contorno Circular Abierto Estilo Apple */}
+        <circle cx="14" cy="14" r="11.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeDasharray="60 12"/>
+        
+        {/* Ojo Izquierdo */}
+        <circle cx="10" cy="11.5" r="1.25" fill="white" 
+          className={`transition-opacity duration-200 ${isPaused ? 'opacity-0' : 'opacity-100'}`} 
+        />
+        <path 
+          d="M10 11.5 Q10 10 10 11.5" stroke="white" strokeWidth="1.25" strokeLinecap="round" fill="none" 
+          className={`transition-opacity duration-200 ${isPaused ? 'opacity-100' : 'opacity-0'}`} 
+        />
+        
+        {/* Ojo Derecho (Guiño o normal) */}
+        {/* El ojo normal se oculta cuando guiña o cuando está pausado (que es cuando tiene los ojos cerrados) */}
+        <circle cx="18" cy="11.5" r="1.25" fill="white" 
+          className={`transition-opacity duration-200 ${isPaused ? 'opacity-0' : (!isPaused && showFace ? 'hide-eye' : 'opacity-100')}`} 
+        />
+        
+        {/* Ojo cerrado (pausa) */}
+        <path 
+          d="M18 11.5 Q18 10 18 11.5" stroke="white" strokeWidth="1.25" strokeLinecap="round" fill="none" 
+          className={`transition-opacity duration-200 ${isPaused ? 'opacity-100' : 'opacity-0'}`} 
+        />
+
+        {/* El arco del guiño feliz animado */}
+        <path 
+          d="M16.5 11.5C17.2 10.5 18.5 10.5 19.2 11.5" 
+          stroke="white" strokeWidth="1.75" strokeLinecap="round" fill="none"
+          style={{ strokeDasharray: '10px', strokeDashoffset: '10px' }}
+          className={!isPaused && showFace ? 'wink-draw' : 'opacity-0'}
+        />
+        
+        {/* Nariz Minimalista */}
+        <path d="M14 10.5V14.5H12.8" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        
+        {/* Sonrisa */}
+        <path d="M11 17.5 H17" stroke="white" strokeWidth="1.75" strokeLinecap="round" 
+          className={`transition-opacity duration-200 ${isPaused ? 'opacity-100' : 'opacity-0'}`} 
+        />
+        <path d="M10 17.5C11.5 19.5 16.5 19.5 18 17.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" 
+          className={`transition-opacity duration-200 ${isPaused ? 'opacity-0' : 'opacity-100'}`} 
+        />
+      </svg>
+    </>
   );
 
   return (
-    <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300">
+    <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-8 duration-500 ease-out fill-mode-forwards">
       
       {/* Main Floating Pill (580x44) */}
       <div 
@@ -125,7 +160,7 @@ export const FloatingWidget: React.FC = () => {
         {/* ZONA CENTRAL (240px) */}
         <div className="flex items-center justify-center w-[240px] h-full relative overflow-hidden">
           {showFace ? (
-             <div className="flex items-center justify-center w-[40px] h-[40px] animate-in slide-in-from-top-10 duration-500 ease-out">
+             <div className="flex items-center justify-center w-[40px] h-[40px]">
                <FaceSVG />
              </div>
           ) : (
