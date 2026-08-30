@@ -54,34 +54,63 @@ export const FloatingWidget: React.FC = () => {
 
   // Carita SVG (Mascota)
   const FaceSVG = () => (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="transition-opacity duration-300">
-      {/* Contorno Circular Abierto Estilo Apple */}
-      <circle cx="14" cy="14" r="11.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeDasharray="60 12"/>
-      
-      {/* Ojo Izquierdo */}
-      {isPaused ? (
-         <path d="M10 11.5 Q10 10 10 11.5" stroke="white" strokeWidth="1.25" strokeLinecap="round" fill="none" />
-      ) : (
-         <circle cx="10" cy="11.5" r="1.25" fill="white"/>
-      )}
-      
-      {/* Ojo Derecho (Guiño o normal) */}
-      {isWinking ? (
-        <path d="M16.5 11.5C17.2 10.5 18.5 10.5 19.2 11.5" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
-      ) : (
-        <circle cx="18" cy="11.5" r="1.25" fill="white"/>
-      )}
-      
-      {/* Nariz Minimalista */}
-      <path d="M14 10.5V14.5H12.8" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-      
-      {/* Sonrisa */}
-      {isPaused ? (
-        <path d="M11 17.5 H17" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
-      ) : (
-        <path d="M10 17.5C11.5 19.5 16.5 19.5 18 17.5" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
-      )}
-    </svg>
+    <>
+      <style>
+        {`
+          @keyframes slideDownFace {
+            0% { transform: translateY(-12px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+          }
+          .animate-face-slide {
+            animation: slideDownFace 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+        `}
+      </style>
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-face-slide">
+        {/* Contorno Circular Abierto Estilo Apple */}
+        <circle cx="14" cy="14" r="11.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeDasharray="60 12"/>
+        
+        {/* Ojo Izquierdo */}
+        {isPaused ? (
+           <path d="M10 11.5 Q10 10 10 11.5" stroke="white" strokeWidth="1.25" strokeLinecap="round" fill="none" />
+        ) : (
+           <circle cx="10" cy="11.5" r="1.25" fill="white"/>
+        )}
+        
+        {/* Ojo Derecho (Guiño o normal) */}
+        {isWinking ? (
+          <g>
+            <circle cx="18" cy="11.5" r="1.25" fill="white">
+              <animate attributeName="opacity" values="1;0;0" keyTimes="0;0.1;1" dur="1.5s" fill="freeze" />
+            </circle>
+            <path 
+              d="M16.5 11.5C17.2 10.5 18.5 10.5 19.2 11.5" 
+              stroke="white" 
+              strokeWidth="1.75" 
+              strokeLinecap="round" 
+              opacity="0"
+              strokeDasharray="10"
+              strokeDashoffset="10"
+            >
+               <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.1;1" dur="1.5s" fill="freeze" />
+               <animate attributeName="stroke-dashoffset" values="10;0" dur="0.3s" begin="0.1s" fill="freeze" />
+            </path>
+          </g>
+        ) : (
+          <circle cx="18" cy="11.5" r="1.25" fill="white"/>
+        )}
+        
+        {/* Nariz Minimalista */}
+        <path d="M14 10.5V14.5H12.8" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        
+        {/* Sonrisa */}
+        {isPaused ? (
+          <path d="M11 17.5 H17" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
+        ) : (
+          <path d="M10 17.5C11.5 19.5 16.5 19.5 18 17.5" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
+        )}
+      </svg>
+    </>
   );
 
   return (
