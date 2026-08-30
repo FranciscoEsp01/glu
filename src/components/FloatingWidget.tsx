@@ -53,15 +53,6 @@ export const FloatingWidget: React.FC = () => {
     <>
       <style>
         {`
-          @keyframes faceDropIn {
-            0% { transform: translateY(-40px); opacity: 0; }
-            30% { transform: translateY(0); opacity: 1; }
-            100% { transform: translateY(0); opacity: 1; }
-          }
-          .face-drop {
-            animation: faceDropIn 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          }
-          
           /* El guiño ocurre entre 40% y 80% de la animación (es decir, entre 0.6s y 1.2s) */
           @keyframes winkDraw {
             0%, 40% { stroke-dashoffset: 10px; opacity: 0; }
@@ -82,7 +73,7 @@ export const FloatingWidget: React.FC = () => {
           }
         `}
       </style>
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="face-drop">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
         {/* Contorno Circular Abierto Estilo Apple */}
         <circle cx="14" cy="14" r="11.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeDasharray="60 12"/>
         
@@ -158,23 +149,19 @@ export const FloatingWidget: React.FC = () => {
         </div>
 
         {/* ZONA CENTRAL (240px) */}
-        <div className="flex items-center justify-center w-[240px] h-full relative overflow-hidden">
-          {showFace ? (
-             <div className="flex items-center justify-center w-[40px] h-[40px]">
-               <FaceSVG />
-             </div>
-          ) : (
-            <div className="flex items-center gap-[3px] h-5 justify-center animate-in fade-in zoom-in duration-300">
+        <div className="flex items-center justify-center w-[240px] h-full">
+          {(isRecording && !isPaused) ? (
+            <div className="flex items-center gap-[3px] h-5 justify-center">
               {audioLevels.slice(0, 10).map((lvl, idx) => (
                 <div
                   key={idx}
-                  style={{
-                    height: `${Math.max(4, lvl * 20)}px`,
-                  }}
-                  className="w-1 rounded-full bg-white transition-all duration-100"
+                  style={{ height: `${Math.max(4, lvl * 20)}px` }}
+                  className="w-1 rounded-full bg-white transition-all duration-75"
                 />
               ))}
             </div>
+          ) : (
+            <div className="text-white/50 text-[11px] font-medium tracking-wide">PAUSADO</div>
           )}
         </div>
 
@@ -208,6 +195,27 @@ export const FloatingWidget: React.FC = () => {
           >
             <Square className="w-3 h-3 text-white fill-current" />
           </button>
+        </div>
+      </div>
+
+      {/* 
+        FACE ID DROPDOWN BOX 
+        Cuadro que hace slide-in HACIA ABAJO debajo de la barra 
+      */}
+      <div className="absolute top-[44px] left-1/2 -translate-x-1/2 overflow-hidden w-24 h-24 flex justify-center pointer-events-none">
+        <div 
+          className={`mt-3 w-12 h-12 flex items-center justify-center transition-all duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] shadow-2xl ${
+            showFace ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0'
+          }`}
+          style={{
+            background: 'rgba(20, 20, 20, 0.7)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '14px'
+          }}
+        >
+          <FaceSVG />
         </div>
       </div>
 
