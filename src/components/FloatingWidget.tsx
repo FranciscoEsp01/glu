@@ -121,7 +121,7 @@ export const FloatingWidget: React.FC = () => {
   );
 
   return (
-    <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-8 duration-500 ease-out fill-mode-forwards">
+    <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 animate-in fade-in duration-300">
       
       {/* Main Floating Pill (580x44) */}
       <div 
