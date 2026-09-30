@@ -1,18 +1,22 @@
 import { create } from 'zustand';
 import { Meeting, TemplateType, TranscriptSegment, AISettings } from '../types/meeting';
-import { INITIAL_MEETINGS } from '../services/mockData';
 import { audioService } from '../services/audioRecorder';
 import { AIService } from '../services/aiService';
-
+import { storage } from '../services/storage';
+import { RecordingClock } from '../services/recordingClock';
+import { desktop, invoke, errorText, escapeHtml } from '../lib/platform';
 interface MeetingStoreState {
-  // Meetings State
+  isKnowledgeOpen: boolean;
+  isBackupOpen: boolean;
+  toggleKnowledge: (open: boolean) => void;
+  toggleBackup: (open: boolean) => void;
+  restoreHistory: (meetings: Meeting[]) => Promise<void>;
   meetings: Meeting[];
   selectedMeetingId: string | null;
-  activeCategory: string; // 'all' | 'today' | 'this_week' | 'sales' | 'one_on_one' | 'engineering' | 'starred'
+  activeCategory: string;
   searchQuery: string;
-
-  // Live Recording State
   isRecording: boolean;
+  isStarting: boolean;
   isPaused: boolean;
   recordingDurationSeconds: number;
   recordingStartTime: number | null;
@@ -22,346 +26,374 @@ interface MeetingStoreState {
   recordingTemplate: TemplateType;
   recordingTitle: string;
   liveTranscript: TranscriptSegment[];
-
-  // App UI State
   viewMode: 'main' | 'floating_pill';
   isSettingsOpen: boolean;
   isCommandPaletteOpen: boolean;
   isNewMeetingModalOpen: boolean;
   isProcessingAI: boolean;
-
-  // Settings
   settings: AISettings;
-
-  // Actions
+  initialized: boolean;
+  error: string | null;
+  recordingId: string | null;
+  initialize: () => Promise<void>;
+  clearError: () => void;
   selectMeeting: (id: string | null) => void;
-  setActiveCategory: (category: string) => void;
-  setSearchQuery: (query: string) => void;
-  setViewMode: (mode: 'main' | 'floating_pill') => void;
-  toggleSettings: (open?: boolean) => void;
-  toggleCommandPalette: (open?: boolean) => void;
-  toggleNewMeetingModal: (open?: boolean) => void;
-
-  // Meeting Management
-  addMeeting: (meeting: Meeting) => void;
+  setActiveCategory: (s: string) => void;
+  setSearchQuery: (s: string) => void;
+  setViewMode: (s: 'main' | 'floating_pill') => void;
+  toggleSettings: (s?: boolean) => void;
+  toggleCommandPalette: (s?: boolean) => void;
+  toggleNewMeetingModal: (s?: boolean) => void;
+  addMeeting: (m: Meeting) => void;
   updateMeeting: (id: string, updates: Partial<Meeting>) => void;
-  deleteMeeting: (id: string) => void;
+  deleteMeeting: (id: string) => Promise<void>;
   toggleStarMeeting: (id: string) => void;
-  toggleActionItem: (meetingId: string, actionId: string) => void;
-
-  // Recording Controls
-  startRecording: (template?: TemplateType, customTitle?: string) => Promise<void>;
+  toggleActionItem: (id: string, action: string) => void;
+  startRecording: (template?: TemplateType, title?: string) => Promise<void>;
   stopRecordingAndProcess: () => Promise<void>;
-  cancelRecording: () => void;
-  addRapidNote: (note: string) => void;
-  setCurrentNoteInput: (val: string) => void;
-  setRecordingTemplate: (t: TemplateType) => void;
-  setRecordingTitle: (title: string) => void;
-  togglePauseRecording: () => void;
-
-  // Settings update
-  updateSettings: (updates: Partial<AISettings>) => void;
+  cancelRecording: () => Promise<void>;
+  processMeeting: (id: string) => Promise<void>;
+  importMeeting: (text: string, audio?: File) => Promise<void>;
+  addRapidNote: (s: string) => void;
+  setCurrentNoteInput: (s: string) => void;
+  setRecordingTemplate: (s: TemplateType) => void;
+  setRecordingTitle: (s: string) => void;
+  togglePauseRecording: () => Promise<void>;
+  updateSettings: (s: Partial<AISettings>) => Promise<void>;
 }
-
-const STORAGE_KEY = 'glu_meetings_data_v1';
-const SETTINGS_KEY = 'glu_settings_v1';
-
-const getInitialMeetings = (): Meeting[] => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (e) {
-    console.error('Error cargando reuniones guardadas:', e);
-  }
-  return INITIAL_MEETINGS;
-};
-
-const getInitialSettings = (): AISettings => {
-  try {
-    const saved = localStorage.getItem(SETTINGS_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (e) {
-    console.error('Error cargando configuración:', e);
-  }
-  return {
-    geminiApiKey: '',
-    deepgramApiKey: '',
-    openaiApiKey: '',
-    selectedModel: 'gemini-2.0-flash',
-    useMockEngine: true,
-    saveLocalAudio: true,
-    theme: 'dark',
-    preferredLanguage: 'es',
-  };
-};
-
-let recordingTimerInterval: any = null;
-
+const recordingClock = new RecordingClock();
+let timer: ReturnType<typeof setInterval> | undefined;
+let persistQueue = Promise.resolve();
+let persistenceError: unknown;
+async function flushed() {
+  await persistQueue;
+  if (persistenceError) throw persistenceError;
+}
+let initialization: Promise<void> | undefined;
+const fresh = (title: string, template: TemplateType = 'general'): Meeting => ({
+  id: crypto.randomUUID(),
+  title,
+  date: new Date().toISOString(),
+  durationMinutes: 0,
+  templateType: template,
+  participants: [],
+  executiveSummary: [],
+  actionItems: [],
+  keyDecisions: [],
+  rawTranscript: [],
+  manualNotes: '',
+  tags: [],
+  category: 'today',
+  status: 'pending',
+});
+function persist() {
+  const snapshot = useMeetingStore.getState().meetings;
+  persistQueue = persistQueue
+    .then(async () => {
+      await storage.save(snapshot);
+      persistenceError = undefined;
+    })
+    .catch((e) => {
+      persistenceError = e;
+      useMeetingStore.setState({ error: `No se pudo guardar el historial: ${errorText(e)}` });
+    });
+}
 export const useMeetingStore = create<MeetingStoreState>((set, get) => ({
-  meetings: getInitialMeetings(),
-  selectedMeetingId: getInitialMeetings()[0]?.id || null,
+  isKnowledgeOpen: false,
+  isBackupOpen: false,
+  toggleKnowledge: (isKnowledgeOpen) => set({ isKnowledgeOpen }),
+  toggleBackup: (isBackupOpen) => set({ isBackupOpen }),
+  restoreHistory: async (meetings) => {
+    if (get().isRecording || get().isProcessingAI || get().isStarting)
+      throw new Error('Finaliza la reunión activa antes de restaurar.');
+    await flushed();
+    await storage.save(meetings);
+    set({ meetings, selectedMeetingId: get().selectedMeetingId || meetings[0]?.id || null });
+  },
+  meetings: [],
+  selectedMeetingId: null,
   activeCategory: 'all',
   searchQuery: '',
-
   isRecording: false,
+  isStarting: false,
   isPaused: false,
   recordingDurationSeconds: 0,
   recordingStartTime: null,
-  audioLevels: [0.2, 0.4, 0.6, 0.3, 0.7, 0.5, 0.4, 0.6, 0.3, 0.5, 0.4, 0.3],
+  audioLevels: Array(12).fill(0),
   rapidNotes: [],
   currentNoteInput: '',
   recordingTemplate: 'general',
   recordingTitle: '',
   liveTranscript: [],
-
   viewMode: 'main',
   isSettingsOpen: false,
   isCommandPaletteOpen: false,
   isNewMeetingModalOpen: false,
   isProcessingAI: false,
-
-  settings: getInitialSettings(),
-
-  selectMeeting: (id) => set({ selectedMeetingId: id }),
-  setActiveCategory: (category) => set({ activeCategory: category }),
-  setSearchQuery: (query) => set({ searchQuery: query }),
-  setViewMode: (mode) => set({ viewMode: mode }),
-  toggleSettings: (open) => set((s) => ({ isSettingsOpen: open !== undefined ? open : !s.isSettingsOpen })),
-  toggleCommandPalette: (open) => set((s) => ({ isCommandPaletteOpen: open !== undefined ? open : !s.isCommandPaletteOpen })),
-  toggleNewMeetingModal: (open) => set((s) => ({ isNewMeetingModalOpen: open !== undefined ? open : !s.isNewMeetingModalOpen })),
-
-  addMeeting: (meeting) => {
-    set((state) => {
-      const updated = [meeting, ...state.meetings];
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {}
-      return { meetings: updated, selectedMeetingId: meeting.id };
-    });
+  initialized: false,
+  error: null,
+  recordingId: null,
+  settings: {
+    geminiApiKey: '',
+    deepgramApiKey: '',
+    selectedModel: 'gemini-2.5-flash',
+    saveLocalAudio: false,
+    theme: 'light',
+    preferredLanguage: 'es',
+    captureSource: 'microphone',
   },
-
-  updateMeeting: (id, updates) => {
-    set((state) => {
-      const updated = state.meetings.map((m) => (m.id === id ? { ...m, ...updates } : m));
+  initialize: () =>
+    (initialization ??= (async () => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {}
-      return { meetings: updated };
-    });
-  },
-
-  deleteMeeting: (id) => {
-    set((state) => {
-      const updated = state.meetings.filter((m) => m.id !== id);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {}
-      const nextSelected = updated.length > 0 ? updated[0].id : null;
-      return { meetings: updated, selectedMeetingId: nextSelected };
-    });
-  },
-
-  toggleStarMeeting: (id) => {
-    set((state) => {
-      const updated = state.meetings.map((m) => (m.id === id ? { ...m, isStarred: !m.isStarred } : m));
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {}
-      return { meetings: updated };
-    });
-  },
-
-  toggleActionItem: (meetingId, actionId) => {
-    set((state) => {
-      const updated = state.meetings.map((m) => {
-        if (m.id !== meetingId) return m;
-        const newActions = m.actionItems.map((a) =>
-          a.id === actionId ? { ...a, completed: !a.completed } : a
-        );
-        return { ...m, actionItems: newActions };
-      });
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {}
-      return { meetings: updated };
-    });
-  },
-
-  startRecording: async (template = 'general', customTitle) => {
-    if (recordingTimerInterval) clearInterval(recordingTimerInterval);
-
-    const title = customTitle || `Reunión ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-
-    set({
-      isRecording: true,
-      isPaused: false,
-      recordingDurationSeconds: 0,
-      recordingStartTime: Date.now(),
-      rapidNotes: [],
-      currentNoteInput: '',
-      recordingTemplate: template,
-      recordingTitle: title,
-      liveTranscript: [],
-    });
-
-    recordingTimerInterval = setInterval(() => {
-      set((s) => ({ recordingDurationSeconds: s.recordingDurationSeconds + 1 }));
-    }, 1000);
-
-    await audioService.startRecording(
-      (levels) => {
-        set({ audioLevels: levels });
-      },
-      (chunk) => {
-        set((s) => ({ liveTranscript: [...s.liveTranscript, chunk] }));
+        const meetings = await storage.load();
+        set({ meetings, selectedMeetingId: meetings[0]?.id ?? null });
+        const settings = await storage.loadSettings();
+        set({ settings });
+      } catch (e) {
+        set({ error: errorText(e) });
+      } finally {
+        set({ initialized: true });
       }
-    );
+    })()),
+  clearError: () => set({ error: null }),
+  selectMeeting: (id) => set({ selectedMeetingId: id }),
+  setActiveCategory: (activeCategory) => set({ activeCategory }),
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+  setViewMode: (viewMode) => {
+    set({ viewMode });
+    if (desktop())
+      void invoke('set_compact', { compact: viewMode === 'floating_pill' }).catch((e) =>
+        set({ error: errorText(e) }),
+      );
   },
-
+  toggleSettings: (v) => set((s) => ({ isSettingsOpen: v ?? !s.isSettingsOpen })),
+  toggleCommandPalette: (v) => set((s) => ({ isCommandPaletteOpen: v ?? !s.isCommandPaletteOpen })),
+  toggleNewMeetingModal: (v) =>
+    set((s) => ({ isNewMeetingModalOpen: v ?? !s.isNewMeetingModalOpen })),
+  addMeeting: (m) => {
+    set((s) => ({ meetings: [m, ...s.meetings], selectedMeetingId: m.id }));
+    persist();
+  },
+  updateMeeting: (id, updates) => {
+    set((s) => ({ meetings: s.meetings.map((m) => (m.id === id ? { ...m, ...updates } : m)) }));
+    persist();
+  },
+  deleteMeeting: async (id) => {
+    if (get().isProcessingAI || id === get().recordingId) return;
+    try {
+      await storage.deleteAudio(id);
+      set((s) => ({
+        meetings: s.meetings.filter((m) => m.id !== id),
+        selectedMeetingId:
+          s.selectedMeetingId === id
+            ? (s.meetings.find((m) => m.id !== id)?.id ?? null)
+            : s.selectedMeetingId,
+      }));
+      persist();
+    } catch (e) {
+      set({ error: errorText(e) });
+    }
+  },
+  toggleStarMeeting: (id) => {
+    const m = get().meetings.find((m) => m.id === id);
+    if (m) get().updateMeeting(id, { isStarred: !m.isStarred });
+  },
+  toggleActionItem: (id, action) => {
+    const m = get().meetings.find((m) => m.id === id);
+    if (m)
+      get().updateMeeting(id, {
+        actionItems: m.actionItems.map((a) =>
+          a.id === action ? { ...a, completed: !a.completed } : a,
+        ),
+      });
+  },
+  startRecording: async (template = 'general', title) => {
+    if (get().isRecording || get().isStarting || get().isProcessingAI || !get().initialized) return;
+    set({ isStarting: true, error: null });
+    const meeting = fresh(title || `Reunión ${new Date().toLocaleString('es-CL')}`, template);
+    try {
+      // Save metadata before requesting capture so interrupted sessions remain discoverable.
+      await storage.save([meeting, ...get().meetings]);
+      await audioService.startRecording(
+        meeting.id,
+        get().settings.captureSource,
+        (audioLevels) => set({ audioLevels }),
+        (error) => set({ error }),
+      );
+      recordingClock.start();
+      meeting.status = 'recording';
+      meeting.hasAudio = true;
+      get().addMeeting(meeting);
+      set({
+        isRecording: true,
+        isStarting: false,
+        isPaused: false,
+        recordingId: meeting.id,
+        recordingDurationSeconds: 0,
+        recordingStartTime: Date.now(),
+        rapidNotes: [],
+        currentNoteInput: '',
+        recordingTemplate: template,
+        recordingTitle: meeting.title,
+        isNewMeetingModalOpen: false,
+      });
+      timer = setInterval(() => {
+        if (get().isPaused) return;
+        const duration = recordingClock.seconds();
+        set({ recordingDurationSeconds: duration });
+        if (duration % 5 === 0)
+          get().updateMeeting(meeting.id, {
+            audioDurationSec: duration,
+            durationMinutes: Math.ceil(duration / 60),
+          });
+      }, 1000);
+    } catch (e) {
+      set({ isStarting: false, error: `No se pudo iniciar: ${errorText(e)}` });
+      await storage.save(get().meetings).catch(() => {});
+      get().setViewMode('main');
+    }
+  },
   stopRecordingAndProcess: async () => {
-    if (recordingTimerInterval) {
-      clearInterval(recordingTimerInterval);
-      recordingTimerInterval = null;
+    const { recordingId, isRecording, currentNoteInput } = get();
+    if (!isRecording || !recordingId) return;
+    clearInterval(timer);
+    const recordingDurationSeconds = recordingClock.stop();
+    set({ isRecording: false, isStarting: true, recordingDurationSeconds });
+    if (currentNoteInput.trim()) get().addRapidNote(currentNoteInput);
+    try {
+      await audioService.stopRecording();
+      get().updateMeeting(recordingId, {
+        status: 'pending',
+        hasAudio: true,
+        audioDurationSec: recordingDurationSeconds,
+        durationMinutes: Math.ceil(recordingDurationSeconds / 60),
+      });
+    } catch (e) {
+      get().updateMeeting(recordingId, { status: 'error', error: errorText(e) });
+      set({ error: errorText(e) });
+    } finally {
+      set({ isStarting: false, isPaused: false, recordingId: null });
+      get().setViewMode('main');
     }
-
-    const {
-      recordingTemplate,
-      recordingTitle,
-      rapidNotes,
-      liveTranscript,
-      recordingDurationSeconds,
-      settings,
-    } = get();
-
-    set({ isRecording: false, isProcessingAI: true });
-
-    // Detener grabación de audio
-    const recordingResult = await audioService.stopRecording();
-
-    // Fallback transcript si fue una reunión muy corta
-    let finalTranscript = recordingResult.transcript;
-    if (finalTranscript.length === 0 && liveTranscript.length > 0) {
-      finalTranscript = liveTranscript;
-    }
-    if (finalTranscript.length === 0) {
-      finalTranscript = [
-        {
-          id: `seg-default-1`,
-          speaker: 'Francisco (Host)',
-          text: 'Iniciamos la reunión para revisar los objetivos del proyecto y definir los entregables inmediatos.',
-          timestamp: 0,
-          duration: 5,
-        },
-        {
-          id: `seg-default-2`,
-          speaker: 'Participante',
-          text: 'Confirmamos que los módulos de la base de datos y la interfaz de usuario están aprobados.',
-          timestamp: 6,
-          duration: 7,
-        },
-      ];
-    }
-
-    const durationMin = Math.max(1, Math.ceil(recordingDurationSeconds / 60));
-
-    // Procesar con IA (Gemini / Claude / local)
-    const aiResult = await AIService.processMeeting(
-      {
-        title: recordingTitle,
-        templateType: recordingTemplate,
-        transcript: finalTranscript,
-        rapidNotes,
-        manualNotes: '',
-        durationMinutes: durationMin,
-      },
-      settings.geminiApiKey
-    );
-
-    const newMeeting: Meeting = {
-      id: `meet-${Date.now()}`,
-      title: aiResult.title || recordingTitle,
-      date: new Date().toISOString(),
-      durationMinutes: durationMin,
-      templateType: recordingTemplate,
-      category: 'today',
-      tags: ['Nueva', recordingTemplate],
-      participants: [
-        {
-          id: 'p-me',
-          name: 'Tú (Host)',
-          role: 'Organizador',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-        },
-        {
-          id: 'p-guest',
-          name: 'Participante',
-          role: 'Invitado',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
-        },
-      ],
-      executiveSummary: aiResult.executiveSummary,
-      actionItems: aiResult.actionItems,
-      keyDecisions: aiResult.keyDecisions,
-      unresolvedQuestions: aiResult.unresolvedQuestions,
-      rawTranscript: finalTranscript,
-      manualNotes: aiResult.enrichedNotes,
-      audioUrl: recordingResult.audioUrl,
-      audioDurationSec: recordingResult.durationSec,
-      isStarred: false,
-    };
-
-    get().addMeeting(newMeeting);
-
-    set({
-      isProcessingAI: false,
-      viewMode: 'main',
-      selectedMeetingId: newMeeting.id,
-      rapidNotes: [],
-      currentNoteInput: '',
-      liveTranscript: [],
-    });
+    await persistQueue;
+    if (get().meetings.find((m) => m.id === recordingId)?.status !== 'error')
+      await get().processMeeting(recordingId);
   },
-
-  cancelRecording: () => {
-    if (recordingTimerInterval) {
-      clearInterval(recordingTimerInterval);
-      recordingTimerInterval = null;
-    }
-    audioService.stopRecording();
-    set({
-      isRecording: false,
-      isPaused: false,
-      recordingDurationSeconds: 0,
-      rapidNotes: [],
-      currentNoteInput: '',
-      liveTranscript: [],
-    });
+  cancelRecording: async () => {
+    await get().stopRecordingAndProcess();
   },
-
-  addRapidNote: (note: string) => {
+  processMeeting: async (id) => {
+    if (get().isProcessingAI || get().isRecording || get().isStarting) return;
+    let meeting = get().meetings.find((m) => m.id === id);
+    if (!meeting) return;
+    set({ isProcessingAI: true, error: null });
+    get().updateMeeting(id, { status: 'processing', error: undefined });
+    try {
+      const settings = { ...get().settings };
+      if (!meeting.rawTranscript.length && meeting.hasAudio) {
+        const blob = desktop() ? undefined : await storage.getAudio(id);
+        if (!desktop() && !blob)
+          throw new Error('El audio no está disponible. Puedes pegar una transcripción.');
+        const rawTranscript = await AIService.transcribe(id, blob, settings);
+        get().updateMeeting(id, {
+          rawTranscript,
+          participants: [...new Set(rawTranscript.map((t) => t.speaker))].map((name) => ({
+            id: name,
+            name,
+          })),
+        });
+        meeting = { ...meeting, rawTranscript };
+      }
+      const result = await AIService.processMeeting(
+        {
+          title: meeting.title,
+          templateType: meeting.templateType,
+          transcript: meeting.rawTranscript,
+          manualNotes: meeting.manualNotes,
+          rapidNotes: meeting.originalNotes ? [meeting.originalNotes] : [],
+          durationMinutes: meeting.durationMinutes,
+        },
+        settings,
+      );
+      get().updateMeeting(id, {
+        originalNotes: meeting.originalNotes || meeting.manualNotes.replace(/<[^>]+>/g, ' '),
+        title: result.title || meeting.title,
+        executiveSummary: result.executiveSummary,
+        actionItems: result.actionItems,
+        keyDecisions: result.keyDecisions,
+        unresolvedQuestions: result.unresolvedQuestions,
+        manualNotes: result.enrichedNotes,
+        status: 'ready',
+        error: undefined,
+      });
+      await flushed();
+      if (!settings.saveLocalAudio && meeting.hasAudio) {
+        await storage.deleteAudio(id);
+        get().updateMeeting(id, { hasAudio: false });
+      }
+    } catch (e) {
+      get().updateMeeting(id, { status: 'error', error: errorText(e) });
+      set({ error: errorText(e) });
+    } finally {
+      set({ isProcessingAI: false });
+    }
+  },
+  importMeeting: async (text, audio) => {
+    if (get().isProcessingAI || get().isRecording || get().isStarting) return;
+    try {
+      const meeting = fresh(audio?.name.replace(/\.[^.]+$/, '') || 'Reunión importada');
+      if (audio) {
+        await storage.putAudio(meeting.id, audio);
+        meeting.hasAudio = true;
+      }
+      if (text.trim())
+        meeting.rawTranscript = [
+          {
+            id: crypto.randomUUID(),
+            speaker: 'Transcripción importada',
+            text: text.trim(),
+            timestamp: 0,
+          },
+        ];
+      get().addMeeting(meeting);
+      await persistQueue;
+    } catch (e) {
+      set({ error: errorText(e) });
+    }
+  },
+  addRapidNote: (note) => {
     if (!note.trim()) return;
-    set((s) => ({
-      rapidNotes: [...s.rapidNotes, note.trim()],
-      currentNoteInput: '',
-    }));
+    const notes = [...get().rapidNotes, note.trim()];
+    set({ rapidNotes: notes, currentNoteInput: '' });
+    const id = get().recordingId;
+    if (id)
+      get().updateMeeting(id, {
+        originalNotes: notes.join('\n'),
+        manualNotes: notes.map((n) => `<p>${escapeHtml(n)}</p>`).join(''),
+      });
   },
-
-  setCurrentNoteInput: (val) => set({ currentNoteInput: val }),
-  setRecordingTemplate: (t) => set({ recordingTemplate: t }),
-  setRecordingTitle: (title) => set({ recordingTitle: title }),
-  togglePauseRecording: () => set((s) => ({ isPaused: !s.isPaused })),
-
-  updateSettings: (updates) => {
-    set((state) => {
-      const next = { ...state.settings, ...updates };
-      try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
-      } catch (e) {}
-      return { settings: next };
-    });
+  setCurrentNoteInput: (currentNoteInput) => set({ currentNoteInput }),
+  setRecordingTemplate: (recordingTemplate) => set({ recordingTemplate }),
+  setRecordingTitle: (recordingTitle) => set({ recordingTitle }),
+  togglePauseRecording: async () => {
+    if (!get().isRecording) return;
+    try {
+      const paused = !get().isPaused;
+      await audioService.pause(paused);
+      if (paused) recordingClock.pause();
+      else recordingClock.resume();
+      set({ isPaused: paused });
+    } catch (e) {
+      set({ error: errorText(e) });
+    }
+  },
+  updateSettings: async (updates) => {
+    const settings = { ...get().settings, ...updates };
+    try {
+      await storage.saveSettings(settings);
+      set({ settings, isSettingsOpen: false });
+    } catch (e) {
+      set({ error: `No se pudo guardar la configuración: ${errorText(e)}` });
+    }
   },
 }));

@@ -1,0 +1,22 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { RecordingClock } from '../src/services/recordingClock';
+test('Elapsed capture time does not depend on background timer frequency and excludes pauses', () => {
+  let now = 0;
+  const clock = new RecordingClock(() => now);
+  clock.start();
+  now = 65300;
+  assert.equal(clock.seconds(), 65);
+  clock.pause();
+  now = 180000;
+  assert.equal(clock.seconds(), 65);
+  clock.pause();
+  clock.resume();
+  now = 185900;
+  assert.equal(clock.stop(), 71);
+  now = 300000;
+  assert.equal(clock.seconds(), 71);
+  clock.start();
+  now = 301500;
+  assert.equal(clock.seconds(), 1);
+});

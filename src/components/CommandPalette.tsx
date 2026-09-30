@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMeetingStore } from '../store/useMeetingStore';
-import { 
-  Search, 
-  Mic, 
-  Settings, 
-  FileText, 
-  Layers, 
-  X
-} from 'lucide-react';
+import { Search, Mic, Settings, FileText, Layers, X } from 'lucide-react';
 
 export const CommandPalette: React.FC = () => {
   const {
@@ -17,17 +10,14 @@ export const CommandPalette: React.FC = () => {
     selectMeeting,
     setViewMode,
     toggleSettings,
-    startRecording,
+    toggleNewMeetingModal,
   } = useMeetingStore();
 
   const [query, setQuery] = useState('');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        toggleCommandPalette();
-      } else if (e.key === 'Escape' && isCommandPaletteOpen) {
+      if (e.key === 'Escape' && isCommandPaletteOpen) {
         toggleCommandPalette(false);
       }
     };
@@ -37,10 +27,11 @@ export const CommandPalette: React.FC = () => {
 
   if (!isCommandPaletteOpen) return null;
 
-  const filteredMeetings = meetings.filter((m) =>
-    m.title.toLowerCase().includes(query.toLowerCase()) ||
-    m.executiveSummary.some((s) => s.toLowerCase().includes(query.toLowerCase())) ||
-    m.tags.some((t) => t.toLowerCase().includes(query.toLowerCase()))
+  const filteredMeetings = meetings.filter(
+    (m) =>
+      m.title.toLowerCase().includes(query.toLowerCase()) ||
+      m.executiveSummary.some((s) => s.toLowerCase().includes(query.toLowerCase())) ||
+      m.tags.some((t) => t.toLowerCase().includes(query.toLowerCase())),
   );
 
   const handleSelectMeeting = (id: string) => {
@@ -50,12 +41,12 @@ export const CommandPalette: React.FC = () => {
 
   const handleStartRec = () => {
     toggleCommandPalette(false);
-    startRecording();
+    toggleNewMeetingModal(true);
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center pt-24 px-4 animate-in fade-in duration-150">
-      <div 
+      <div
         className="w-full max-w-xl bg-white dark:bg-[#16181f] rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden flex flex-col max-h-[500px] animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
@@ -93,7 +84,7 @@ export const CommandPalette: React.FC = () => {
                 <div className="w-6 h-6 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center">
                   <Mic className="w-3.5 h-3.5" />
                 </div>
-                <span>Iniciar Grabación Global de Audio</span>
+                <span>Nueva reunión</span>
                 <kbd className="ml-auto font-mono text-[10px] text-gray-400">⌘⇧R</kbd>
               </button>
 
@@ -163,7 +154,7 @@ export const CommandPalette: React.FC = () => {
 
         {/* Footer info */}
         <div className="px-4 py-2 bg-black/[0.02] dark:bg-white/[0.02] border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between text-[11px] text-gray-400 font-mono">
-          <span>Usa ↑ ↓ para navegar</span>
+          <span>Tab para navegar · Enter para elegir</span>
           <span>Esc para cerrar</span>
         </div>
       </div>

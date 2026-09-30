@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useMeetingStore } from './store/useMeetingStore';
 import { TitleBar } from './components/TitleBar';
 import { Sidebar } from './components/Sidebar';
@@ -7,90 +7,100 @@ import { FloatingWidget } from './components/FloatingWidget';
 import { CommandPalette } from './components/CommandPalette';
 import { SettingsModal } from './components/SettingsModal';
 import { NewMeetingModal } from './components/NewMeetingModal';
-
-export const App: React.FC = () => {
-  const {
-    viewMode,
-    isRecording,
-    startRecording,
-    stopRecordingAndProcess,
-    toggleCommandPalette,
-    settings,
-  } = useMeetingStore();
-
-  // Apply dark/light theme class on root html
+import { KnowledgeModal } from './components/KnowledgeModal';
+import { BackupModal } from './components/BackupModal';
+import { desktop } from './lib/platform';
+export function App() {
+  const s = useMeetingStore();
   useEffect(() => {
-    if (settings.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [settings.theme]);
-
-  // Global Keyboard Shortcuts (Cmd+Shift+R, Cmd+K, etc.)
+    void s.initialize();
+  }, []);
   useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-
-      // Cmd + Shift + R : Start / Stop recording toggle
-      if (isCmdOrCtrl && e.shiftKey && (e.key === 'R' || e.key === 'r')) {
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    const apply = () =>
+      document.documentElement.classList.toggle(
+        'dark',
+        s.settings.theme === 'dark' || (s.settings.theme === 'system' && mq.matches),
+      );
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [s.settings.theme]);
+  useEffect(() => {
+    const action = (command: string) => {
+      const state = useMeetingStore.getState();
+      if (command === 'record') {
+        if (state.isRecording) void state.stopRecordingAndProcess();
+        else {
+          state.setViewMode('main');
+          state.toggleNewMeetingModal(true);
+        }
+      } else if (command === 'pause') void state.togglePauseRecording();
+      else window.dispatchEvent(new Event('glu-notes'));
+    };
+    const key = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        if (isRecording) {
-          stopRecordingAndProcess();
-        } else {
-          startRecording();
+        useMeetingStore.getState().toggleCommandPalette();
+      }
+      if (e.shiftKey && !desktop()) {
+        const c = { r: 'record', m: 'pause', n: 'notes' }[e.key.toLowerCase()];
+        if (c) {
+          e.preventDefault();
+          action(c);
         }
       }
-
-      // Cmd + K : Global Command Palette
-      if (isCmdOrCtrl && (e.key === 'K' || e.key === 'k')) {
+    };
+    window.addEventListener('keydown', key);
+    const unload = (e: BeforeUnloadEvent) => {
+      if (useMeetingStore.getState().isRecording || useMeetingStore.getState().isProcessingAI) {
         e.preventDefault();
-        toggleCommandPalette();
+        e.returnValue = '';
       }
     };
-
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isRecording, startRecording, stopRecordingAndProcess, toggleCommandPalette]);
-
+    window.addEventListener('beforeunload', unload);
+    const api = (window as any).__TAURI__;
+    const unlisteners: Promise<() => void>[] = api
+      ? [
+          api.event.listen('glu-shortcut', (event: { payload: string }) => action(event.payload)),
+          api.event.listen('glu-close-blocked', () =>
+            useMeetingStore.setState({ error: 'Finaliza la grabación antes de cerrar Glu.' }),
+          ),
+        ]
+      : [];
+    return () => {
+      window.removeEventListener('keydown', key);
+      window.removeEventListener('beforeunload', unload);
+      unlisteners.forEach((p) => void p.then((off) => off()));
+    };
+  }, []);
   return (
-    <main className="w-screen h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-slate-200 via-slate-100 to-indigo-100 dark:from-[#08090c] dark:via-[#0f1118] dark:to-[#181a24] overflow-hidden">
-      {/* Floating Pill Overlay (Always available when recording or in pill view mode) */}
-      {(viewMode === 'floating_pill' || isRecording) && <FloatingWidget />}
-
-      {/* Main Native macOS Window View */}
-      {viewMode === 'main' ? (
-        <div className="w-[1080px] h-[700px] rounded-[16px] shadow-2xl border border-black/10 bg-white/50 backdrop-blur-3xl flex flex-col overflow-hidden transition-all duration-300">
-          {/* Title Bar */}
-          <TitleBar />
-
-          {/* Window Body: Split View (Sidebar 300px + Main Workspace 780px+) */}
-          <div className="flex-1 flex flex-row overflow-hidden">
-            <Sidebar />
+    <main className={`app-shell ${s.viewMode === 'floating_pill' ? 'compact-shell' : ''}`}>
+      {s.viewMode === 'main' && (
+        <>
+          <Sidebar />
+          <div className="main-column">
+            <TitleBar />
             <MeetingView />
           </div>
-        </div>
-      ) : (
-        /* Minimalist background container when in floating pill mode */
-        <div className="text-center text-gray-500 dark:text-gray-400 space-y-3 animate-in fade-in">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold text-xl shadow-sm">
-            G
-          </div>
-          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-            Modo Cápsula Flotante Activo
-          </h2>
-          <p className="text-xs text-gray-400 max-w-xs">
-            Glu está listo en segundo plano para acompañar tus videollamadas en Zoom, Meet y Slack.
-          </p>
+        </>
+      )}
+      {(s.isRecording || s.viewMode === 'floating_pill') && <FloatingWidget />}
+      {s.error && (
+        <div className="error-banner" role="alert">
+          <span>{s.error}</span>
+          <button onClick={s.clearError} aria-label="Cerrar error">
+            ×
+          </button>
         </div>
       )}
-
-      {/* Modals & Dialogs */}
+      <KnowledgeModal />
+      <BackupModal />
       <CommandPalette />
       <SettingsModal />
       <NewMeetingModal />
     </main>
   );
-};
-
+}
 export default App;

@@ -1,72 +1,91 @@
-# 🚀 Glu — Asistente de Reuniones AI (Desktop & Web App)
+# Glu
 
-**Glu** es un asistente de reuniones con inteligencia artificial diseñado para convivir pacíficamente con **Zoom, Google Meet y Slack** sin bots invasivos. Captura el audio en vivo, permite tomar apuntes rápidos mediante una **Cápsula Flotante (Floating Pill)**, transcribe con diarización de hablantes y genera resúmenes estructurados enriquecidos con LLMs (Gemini / Claude / OpenAI).
+Aplicación de reuniones con captura de audio, apuntes, transcripción con Deepgram y resúmenes con Gemini. Los resultados provienen de las APIs: no hay transcripciones, acuerdos ni tareas simuladas en el flujo de uso.
 
----
+## Ejecutar
 
-## ✨ Características Principales
-
-1. **Ventana Nativa Split-View (macOS Sequoia / Sonoma)**:
-   - **Sidebar translúcida (300px)** con efecto Vibrancy Glass, buscador instantáneo por voz y texto, categorías (*Hoy, Esta Semana, Ventas MEDDIC, 1-on-1s, Syncs de Ingeniería, Destacadas*).
-   - **Workspace Principal (780px+)**: Resumen ejecutivo en bullets, lista interactiva de tareas (*Action Items*) con checkboxes tachables, badges de decisiones clave y editor de notas enriquecidas TipTap.
-   - **Reproductor de Audio Sincronizado**: Onda de sonido interactiva (*waveform scrubber*) conectada con transcripción por hablantes. Haz clic en cualquier párrafo para saltar al segundo exacto.
-2. **Cápsula Flotante en Vivo ("Floating Pill")**:
-   - Widget discreto *Always-On-Top*.
-   - Temporizador y punto rojo pulsante en tiempo real.
-   - Onda de audio dinámica en vivo.
-   - Campo para tomar apuntes rápidos (`Cmd + Shift + N`) sin perder el foco en la videollamada.
-   - Botón de finalización rápida (`Cmd + Shift + R`) que sintetiza y abre el editor con un clic.
-3. **Galería de Plantillas de Especialización**:
-   - **Ventas B2B (MEDDIC / BANT)**: Dolor principal, presupuesto, decisor, objeciones y próximos pasos.
-   - **1-on-1 (Manager & Reporte)**: Estado de ánimo, bloqueos, retroalimentación y compromisos.
-   - **UX Research & Discovery**: Golden quotes, fricciones, feature requests y perfil de usuario.
-   - **Sync Técnico / Daily Standup**: Completado, en progreso, bloqueos y acuerdos de arquitectura.
-   - **Resumen Ejecutivo Estándar**: Resumen balanceado y tareas clave.
-4. **Exportaciones con 1 Clic**:
-   - 📄 **Notion**: Formato limpio en bloques de Notion.
-   - 💬 **Slack**: Formato con viñetas, negritas y menciones de equipo.
-   - 📋 **Markdown**: Exportación completa al portapapeles.
-5. **Privacidad & Zero-Audio Retention**:
-   - Procesamiento local en memoria y base de datos SQLite / almacenamiento local seguro.
-6. **Command Palette Global (`Cmd + K`)**:
-   - Búsqueda difusa ultrarrápida y ejecución de comandos globales.
-
----
-
-## ⌨️ Atajos de Teclado Globales
-
-| Atajo (macOS) | Atajo (Windows) | Acción |
-| :--- | :--- | :--- |
-| `Cmd + Shift + R` | `Ctrl + Shift + R` | **Iniciar / Detener Grabación Global** |
-| `Cmd + Shift + N` | `Ctrl + Shift + N` | **Tomar apunte rápido en la Cápsula Flotante** |
-| `Cmd + K` | `Ctrl + K` | **Abrir Command Palette** |
-| `Cmd + B` / `Cmd + I` | `Ctrl + B` / `Ctrl + I` | **Formato negrita / cursiva en el editor** |
-
----
-
-## 🛠️ Stack Tecnológico
-
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS + Lucide Icons + TipTap Editor + Zustand.
-- **Audio Engine**: Web Audio API (MediaRecorder + AnalyserNode) + Arquitectura nativa Rust con `cpal` y `hound` para macOS (ScreenCaptureKit) y Windows (WASAPI Loopback).
-- **Inteligencia Artificial**: Google Gemini 2.0 Flash / Deepgram Nova-2 / Claude 3.5 Sonnet / OpenAI + Motor de simulación sintética de alta fidelidad para modo offline.
-- **Desktop Runtime**: Tauri v2 (`src-tauri`).
-
----
-
-## 🚀 Cómo Ejecutar el Proyecto
-
-### 1. Iniciar en modo Web / Desarrollo:
-```bash
+```sh
+npm install
 npm run dev
 ```
-Abre tu navegador en `http://localhost:1420`.
 
-### 2. Compilar para Producción:
-```bash
-npm run build
-```
+Abre http://localhost:1420. Para escritorio necesitas Node 22+, Rust estable y las herramientas de línea de comandos de Xcode:
 
-### 3. Ejecutar como App Nativa de Escritorio (con Rust instalado):
-```bash
+```sh
 npm run tauri dev
+npm run tauri build -- --bundles app
 ```
+
+La captura nativa requiere **macOS 15 o posterior** y permisos de micrófono y grabación de pantalla/audio. Se compila un auxiliar Swift usando ScreenCaptureKit; no se guardan imágenes de la pantalla. El build admite Apple Silicon e Intel según el target de compilación. La compilación verificada en este equipo es Apple Silicon. Windows no tiene todavía motor de captura nativo; la versión web permite usar micrófono y, cuando el navegador lo permita, compartir audio de una pestaña.
+
+## Primer uso
+
+1. Abre Configuración e introduce tus claves de Deepgram y Google Gemini. El modelo es configurable (valor inicial: `gemini-2.5-flash`). Debe estar disponible en tu cuenta.
+2. Elige micrófono o micrófono + sistema/pestaña, idioma y conservación de audio.
+3. Crea una reunión, informa a sus participantes y concede los permisos del sistema.
+4. Toma apuntes desde la cápsula. Pausar detiene ambas fuentes; finalizar guarda la reunión antes de llamar a los proveedores.
+5. Revisa el resumen, marca tareas, edita las notas, copia el contenido o descarga Markdown.
+
+También puedes pegar una transcripción o importar audio (hasta 250 MB) sin claves. La generación de resúmenes requiere Gemini; la transcripción de audio requiere Deepgram. En navegador, la captura dual exige seleccionar una fuente con audio compartido. Si no está disponible, Glu muestra un error y libera los dispositivos.
+
+## Funciones implementadas
+
+- Captura real de micrófono en navegador y captura nativa micrófono/sistema con ScreenCaptureKit en macOS 15+.
+- Pausa real, temporizador, apuntes y ventana compacta siempre visible en escritorio.
+- Transcripción al finalizar (no streaming en vivo), con tiempos y etiquetas de hablantes.
+- Resúmenes por plantilla, tareas y decisiones con validación de estructura; nunca se inventa un fallback cuando falla una API.
+- Historial, búsqueda textual, destacados, editor TipTap, tareas, importación y eliminación con confirmación.
+- Audio reproducible y descargable, navegación desde marcas de tiempo y exportación Markdown/copia para otras herramientas.
+- SQLite en escritorio; localStorage para metadatos e IndexedDB para audio en web.
+- Recuperación de reuniones interrumpidas y reintentos sin perder la transcripción.
+- Preguntas sobre el historial: recuperación local por palabras clave y respuestas Gemini con citas textuales verificadas.
+- Copias JSON del historial y restauración sin sobrescribir reuniones existentes (sin audios ni claves).
+- Envío real a Slack y Notion desde escritorio, con vista previa, destino explícito y credenciales en Keychain.
+- Tema claro/oscuro/sistema. Atajos de escritorio: ⌘⇧R, ⌘⇧N, ⌘⇧M; ⌘K dentro de Glu.
+
+## Datos y privacidad
+
+En escritorio, las claves se guardan en Keychain y las peticiones a proveedores se realizan desde Rust. En navegador solo permanecen en memoria durante la sesión. No se incluyen secretos en el repositorio.
+
+El audio se envía a Deepgram y el texto a Google Gemini cuando procesas una reunión. Sus políticas y la configuración de tu cuenta aplican; Glu no afirma que los proveedores tengan retención cero. El historial local no está cifrado por esta versión; la protección del disco depende del sistema operativo.
+
+En macOS los archivos residen en `~/Library/Application Support/com.glu.meetingai/`. SQLite guarda el historial; `recordings/<id>/` conserva audio y fragmentos recuperables. Los fragmentos CAF se mezclan a WAV al finalizar. En web se escriben checkpoints cada 5 segundos; un cierre abrupto puede perder el último intervalo y la recuperación depende del formato soportado por el navegador.
+
+Si desactivas conservar audio, se elimina solo después de generar y guardar el resumen con éxito. Mientras exista un error, el audio se conserva para reintentar. Cambiar esta opción no borra retroactivamente otras reuniones: puedes eliminarlas desde su vista.
+
+## Validación
+
+```sh
+npm run build
+npm test
+npx playwright install chromium
+npm run test:e2e
+cargo check --manifest-path src-tauri/Cargo.toml
+```
+
+Para usar un navegador Chromium instalado, define `PLAYWRIGHT_EXECUTABLE_PATH`. Las pruebas e2e utilizan audio de prueba y respuestas HTTP controladas; no consumen saldo ni prueban la precisión de un proveedor real.
+
+## Estado y límites
+
+Esta es una implementación funcional del flujo individual, no un SaaS comercial terminado. Requiere pruebas de una llamada real con permisos y credenciales del propietario antes de distribuirse a usuarios. La firma Developer ID y notarización no están configuradas.
+
+Pendientes de la visión de negocio: suscripciones y facturación, cuentas y equipos, sincronización, OAuth de calendarios, OAuth de Slack/Notion, integración CRM, búsqueda vectorial entre reuniones, cifrado de la base local, Windows nativo y actualización automática firmada. Slack y Notion usan tokens configurados por el usuario, no un flujo OAuth público.
+
+## Referencias técnicas
+
+- [Tauri v2](https://v2.tauri.app/)
+- [ScreenCaptureKit — Apple](https://developer.apple.com/documentation/screencapturekit/capturing-screen-content-in-macos)
+- [Deepgram — audio pregrabado](https://developers.deepgram.com/docs/pre-recorded-audio)
+- [Gemini — salida estructurada](https://ai.google.dev/gemini-api/docs/structured-output)
+
+## Slack, Notion y memoria de reuniones
+
+En Configuración, despliega «Conectar Slack y Notion». Slack requiere un token de bot con `chat:write` y acceso al canal indicado. Notion requiere un token de integración con permiso para insertar contenido y una página compartida con esa integración; Glu crea una página hija bajo la página de destino. Acepta su ID o enlace.
+
+Los botones Slack y Notion muestran el contenido exacto antes de enviarlo. No incluyen el audio ni la transcripción completa. No hay reintentos automáticos de escrituras: si se pierde la conexión, revisa el destino para evitar duplicados. Las rutas están implementadas y probadas con servicios controlados; debes validarlas con tus propias cuentas.
+
+«Preguntar a mis reuniones» encuentra fragmentos por coincidencias de palabras en el dispositivo. Al pulsar Responder se envían la pregunta y hasta ocho fragmentos a Gemini. La respuesta solo se muestra con citas que coincidan literalmente con las fuentes. Esta versión no usa embeddings; preguntas sin términos relacionados pueden no encontrar evidencia.
+
+«Copias del historial» exporta notas y transcripciones en JSON. No incluye audio, ajustes ni credenciales. Al restaurar, los IDs ya existentes conservan su contenido actual. Guarda los audios por separado si quieres conservarlos fuera de Glu.
+
+Referencias de integración: [Slack chat.postMessage](https://docs.slack.dev/reference/methods/chat.postMessage/) y [límites de Notion](https://developers.notion.com/reference/request-limits).

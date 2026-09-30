@@ -1,170 +1,360 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Star, Copy, Download, Trash2, Sparkles, FileText, ArrowUpRight, Plus } from 'lucide-react';
 import { useMeetingStore } from '../store/useMeetingStore';
+import { storage } from '../services/storage';
+import { exportMarkdown, downloadFile } from '../services/export';
+import { errorText } from '../lib/platform';
 import { AudioPlayer } from './AudioPlayer';
-import { ChevronDown } from 'lucide-react';
-import confetti from 'canvas-confetti';
-
-export const MeetingView: React.FC = () => {
-  const { meetings, selectedMeetingId, toggleActionItem } = useMeetingStore();
-  const [currentAudioSec, setCurrentAudioSec] = useState(0);
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
-
-  const meeting = meetings.find((m) => m.id === selectedMeetingId) || meetings[0];
-
-  if (!meeting) {
-    return (
-      <div className="flex-1 h-full flex flex-col items-center justify-center bg-white p-8">
-        <h3 className="text-base font-semibold text-gray-600">No hay reunión seleccionada</h3>
-      </div>
-    );
-  }
-
-  const meetingDate = new Date(meeting.date);
-
-  const triggerExportNotification = (type: string) => {
-    setCopyFeedback(type);
-    confetti({
-      particleCount: 40,
-      spread: 60,
-      origin: { y: 0.2, x: 0.7 },
-      colors: ['#6366f1', '#a855f7', '#ec4899'],
-    });
-    setTimeout(() => setCopyFeedback(null), 3000);
-  };
-
-  const copyForSlack = () => {
-    // simplified for brevity
-    triggerExportNotification('slack');
-  };
-
-  const copyForNotion = () => {
-    // simplified for brevity
-    triggerExportNotification('notion');
-  };
-
-  return (
-    <div className="flex-1 h-full bg-[#FFFFFF] flex flex-col overflow-y-auto select-text p-[32px] relative">
-      {/* Toast Notification */}
-      {copyFeedback && (
-        <div className="absolute top-4 right-8 z-50 bg-gray-900 text-white text-xs px-3.5 py-2 rounded-xl shadow-xl flex items-center gap-2 animate-bounce">
-          <span>
-            {copyFeedback === 'slack' && '¡Enviado a Slack!'}
-            {copyFeedback === 'notion' && '¡Exportado a Notion!'}
-          </span>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div className="space-y-3">
-          <h1 className="text-[20px] font-bold text-[#111827] tracking-tight leading-tight">
-            {meeting.title}
-          </h1>
-          <div className="flex items-center gap-3">
-            <span className="text-[12px] text-gray-500 font-medium">
-               {meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, {meetingDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold bg-gray-100 text-gray-800 px-2 py-0.5 rounded-md flex flex-col items-center justify-center leading-none text-center">
-                 <span className="text-[14px] leading-tight">{meetingDate.getDate()}</span>
-                 <span className="text-[8px] uppercase">{meetingDate.toLocaleDateString('es-ES', { month: 'short' })}</span>
-              </span>
-            </div>
-            <div className="flex -space-x-1">
-               {meeting.participants.map((p) => (
-                  <img
-                     key={p.id}
-                     src={p.avatar}
-                     alt={p.name}
-                     className="w-6 h-6 rounded-full ring-2 ring-white object-cover"
-                  />
-               ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={copyForNotion}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 transition-colors"
-          >
-            Exportar a Notion
-          </button>
-          <button
-            onClick={copyForSlack}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 transition-colors"
-          >
-            Enviar a Slack
-          </button>
-        </div>
-      </div>
-
-      <div className="max-w-3xl space-y-8">
-         {/* Resumen Ejecutivo */}
-         <section>
-            <h2 className="text-[16px] font-bold text-gray-900 mb-3">Resumen Ejecutivo</h2>
-            <ul className="space-y-[10px] pl-5 list-disc text-[14px] leading-[22px] text-gray-800">
-               {meeting.executiveSummary.map((bullet, idx) => (
-                  <li key={idx} className="pl-1 marker:text-gray-400">{bullet}</li>
-               ))}
-            </ul>
-         </section>
-
-         {/* Tareas y Compromisos */}
-         <section>
-            <h2 className="text-[16px] font-bold text-gray-900 mb-3">Tareas y Compromisos</h2>
-            <div className="space-y-2">
-               {meeting.actionItems.map((action) => (
-                  <div key={action.id} className="flex items-center gap-2 text-[14px] text-gray-800">
-                     <input 
-                        type="checkbox" 
-                        checked={action.completed}
-                        onChange={() => toggleActionItem(meeting.id, action.id)}
-                        className="w-[14px] h-[14px] text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                     />
-                     <span className={`${action.completed ? 'line-through text-gray-400' : ''}`}>
-                        {action.text} {action.assignee && `(${action.assignee}${action.dueDate ? `, ${action.dueDate}` : ''})`}
-                     </span>
-                  </div>
-               ))}
-            </div>
-         </section>
-
-         {/* Decisiones Clave */}
-         <section>
-            <h2 className="text-[16px] font-bold text-gray-900 mb-3">Decisiones Clave</h2>
-            <div className="flex flex-wrap gap-2">
-               {meeting.keyDecisions.map((dec) => (
-                  <div key={dec.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F3F4F6] border border-gray-200 text-[13px] text-gray-800">
-                     <span className="text-gray-400 border border-gray-300 rounded-[3px] w-3 h-3 flex items-center justify-center text-[8px]">✗</span>
-                     {dec.decision}
-                  </div>
-               ))}
-            </div>
-         </section>
-
-         {/* Transcripción con Audio */}
-         <section className="mt-12 bg-gray-50 border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-4 cursor-pointer text-gray-700 hover:text-gray-900">
-               <ChevronDown className="w-4 h-4" />
-               <h3 className="text-[14px] font-bold">Transcripción con Audio</h3>
-            </div>
-            
-            <AudioPlayer
-               audioUrl={meeting.audioUrl}
-               durationSec={meeting.audioDurationSec || 52}
-               currentPlaybackTime={currentAudioSec}
-               onSeek={(sec) => setCurrentAudioSec(sec)}
-            />
-
-            <div className="mt-4 text-[13px] text-gray-800 space-y-2 max-h-40 overflow-y-auto pr-2">
-               {meeting.rawTranscript.map((seg) => (
-                  <div key={seg.id} className="leading-relaxed cursor-pointer hover:bg-gray-100 p-1 rounded" onClick={() => setCurrentAudioSec(seg.timestamp)}>
-                     <span className="font-bold">{seg.speaker}:</span> "{seg.text}"
-                  </div>
-               ))}
-            </div>
-         </section>
+import { ShareModal } from './ShareModal';
+import { Integration } from '../services/integrations';
+import { TipTapEditor } from './TipTapEditor';
+export function MeetingView() {
+  const s = useMeetingStore();
+  const meeting = s.meetings.find((m) => m.id === s.selectedMeetingId);
+  const [url, setUrl] = useState<string>();
+  const [seek, setSeek] = useState(0);
+  const [message, setMessage] = useState('');
+  const [text, setText] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [sharing, setSharing] = useState<Integration>();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  useEffect(() => {
+    setUrl(undefined);
+    setSeek(0);
+    setMessage('');
+    setConfirmDelete(false);
+    setSharing(undefined);
+    let cancelled = false;
+    let objectUrl: string | undefined;
+    if (meeting?.hasAudio && meeting.status !== 'recording')
+      void storage
+        .playbackUrl(meeting.id)
+        .then((source) => {
+          if (source && !cancelled) {
+            objectUrl = source;
+            setUrl(source);
+          } else if (source) URL.revokeObjectURL(source);
+        })
+        .catch((e) => {
+          if (!cancelled) setMessage(errorText(e));
+        });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [meeting?.id, meeting?.hasAudio, meeting?.status]);
+  const busy = s.isProcessingAI || s.isRecording || s.isStarting;
+  const importPanel = (
+    <div className="import-panel">
+      <h3>Trae una conversación</h3>
+      <p className="muted">
+        Pega una transcripción o importa un archivo de audio. Podrás revisar el contenido antes de
+        enviarlo a la IA.
+      </p>
+      <textarea
+        aria-label="Transcripción para importar"
+        placeholder="Pega aquí la transcripción…"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <div className="form-row">
+        <button
+          className="primary"
+          disabled={!text.trim() || busy}
+          onClick={async () => {
+            await s.importMeeting(text);
+            setText('');
+            setShowImport(false);
+          }}
+        >
+          Guardar transcripción
+        </button>
+        <label className="file-button">
+          Importar audio
+          <input
+            type="file"
+            accept="audio/*,.wav,.mp3,.m4a,.mp4,.webm,.ogg,.flac"
+            disabled={busy}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                if (file.size > 250 * 1024 * 1024) {
+                  setMessage('El límite de importación es 250 MB.');
+                  return;
+                }
+                await s.importMeeting('', file);
+                setShowImport(false);
+              }
+              e.target.value = '';
+            }}
+          />
+        </label>
       </div>
     </div>
   );
-};
+  if (!meeting)
+    return (
+      <section className="workspace empty-workspace">
+        <div className="welcome-icon">
+          <Sparkles size={30} />
+        </div>
+        <p className="eyebrow">MENOS APUNTES. MÁS CONVERSACIÓN.</p>
+        <h1>
+          Las buenas ideas
+          <br />
+          merecen quedarse.
+        </h1>
+        <p className="welcome-copy">
+          Concéntrate en la reunión. Glu organiza tus apuntes,
+          <br />
+          los acuerdos y los próximos pasos.
+        </p>
+        <button
+          className="primary"
+          onClick={() => s.toggleNewMeetingModal(true)}
+          disabled={!s.initialized}
+        >
+          <Plus size={17} /> Grabar mi primera reunión <ArrowUpRight size={16} />
+        </button>
+        <div className="welcome-features">
+          <span>Sin bots en la llamada</span>
+          <span>Notas editables</span>
+          <span>Historial local</span>
+        </div>
+        {importPanel}
+      </section>
+    );
+  return (
+    <section className="workspace">
+      {sharing && (
+        <ShareModal
+          key={`${meeting.id}-${sharing}`}
+          meeting={meeting}
+          provider={sharing}
+          onClose={() => setSharing(undefined)}
+        />
+      )}
+      <div className="document-toolbar">
+        <span className="eyebrow">
+          {meeting.templateType.replace(/_/g, ' ')} ·{' '}
+          {meeting.status === 'ready'
+            ? 'RESUMEN LISTO'
+            : meeting.status === 'recording'
+              ? 'EN CURSO'
+              : 'BORRADOR'}
+        </span>
+        <div>
+          <button title="Destacar reunión" onClick={() => s.toggleStarMeeting(meeting.id)}>
+            <Star size={17} fill={meeting.isStarred ? 'currentColor' : 'none'} />
+          </button>
+          <button title="Importar otra reunión" onClick={() => setShowImport(!showImport)}>
+            <Plus size={17} />
+          </button>
+          <button title="Eliminar reunión" disabled={busy} onClick={() => setConfirmDelete(true)}>
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+      {message && (
+        <p role="status" className="notice">
+          {message}
+          <button onClick={() => setMessage('')} aria-label="Cerrar aviso">
+            {' '}
+            ×
+          </button>
+        </p>
+      )}
+      {confirmDelete && (
+        <div className="notice">
+          ¿Eliminar esta reunión y su audio de este dispositivo?{' '}
+          <button onClick={() => setConfirmDelete(false)}>Cancelar</button>{' '}
+          <button className="danger" onClick={() => void s.deleteMeeting(meeting.id)}>
+            Eliminar definitivamente
+          </button>
+        </div>
+      )}
+      {showImport && importPanel}
+      <input
+        aria-label="Título de reunión"
+        className="document-title"
+        value={meeting.title}
+        onChange={(e) => s.updateMeeting(meeting.id, { title: e.target.value })}
+      />
+      <p className="document-meta">
+        {new Date(meeting.date).toLocaleDateString('es-CL', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        })}{' '}
+        <span>·</span>{' '}
+        {meeting.durationMinutes ? `${meeting.durationMinutes} min` : 'Transcripción / notas'}{' '}
+        <span>·</span>{' '}
+        {meeting.participants.length
+          ? `${meeting.participants.length} hablantes`
+          : 'Sin participantes identificados'}
+      </p>
+      <div className="document-actions">
+        <button onClick={() => setSharing('slack')} disabled={busy}>
+          Slack ↗
+        </button>
+        <button onClick={() => setSharing('notion')} disabled={busy}>
+          Notion ↗
+        </button>
+        <button
+          className="primary"
+          disabled={busy}
+          onClick={() => void s.processMeeting(meeting.id)}
+        >
+          <Sparkles size={15} />
+          {s.isProcessingAI
+            ? 'Procesando…'
+            : meeting.status === 'ready'
+              ? 'Regenerar resumen'
+              : 'Generar resumen'}
+        </button>
+        <button
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(exportMarkdown(meeting));
+              setMessage('Resumen copiado. Puedes pegarlo en Slack, Notion o un correo.');
+            } catch {
+              setMessage('No se pudo copiar. Usa Descargar Markdown.');
+            }
+          }}
+        >
+          <Copy size={14} />
+          Copiar
+        </button>
+        <button
+          onClick={() =>
+            downloadFile(
+              `${meeting.title.replace(/[^\p{L}\p{N} -]/gu, '').slice(0, 80) || 'reunion'}.md`,
+              exportMarkdown(meeting),
+            )
+          }
+        >
+          <Download size={14} />
+          Markdown
+        </button>
+      </div>
+      {meeting.error && <p className="notice error-notice">{meeting.error}</p>}
+      <div className="summary-card">
+        <div className="section-title">
+          <Sparkles size={17} />
+          <h2>Lo que importa</h2>
+          <span>RESUMEN</span>
+        </div>
+        {meeting.executiveSummary.length ? (
+          <ul>
+            {meeting.executiveSummary.map((t, i) => (
+              <li key={i}>{t}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">
+            Tu resumen aparecerá aquí después de procesar la reunión. Los apuntes y la transcripción
+            se conservan aunque la IA falle.
+          </p>
+        )}
+      </div>
+      <div className="section-title">
+        <h2>Tareas y compromisos</h2>
+        <span>
+          {meeting.actionItems.filter((a) => a.completed).length}/{meeting.actionItems.length}
+        </span>
+      </div>
+      {meeting.actionItems.length ? (
+        <div className="task-list">
+          {meeting.actionItems.map((a) => (
+            <label key={a.id} className="task-row">
+              <input
+                type="checkbox"
+                checked={a.completed}
+                onChange={() => s.toggleActionItem(meeting.id, a.id)}
+              />
+              <span className={a.completed ? 'done' : ''}>
+                {a.text}
+                <small>
+                  {a.assignee || 'Sin responsable'}
+                  {a.dueDate ? ` · ${a.dueDate}` : ''}
+                </small>
+              </span>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <p className="muted">No hay tareas identificadas.</p>
+      )}
+      <div className="section-title">
+        <h2>Decisiones clave</h2>
+      </div>
+      <div className="decision-list">
+        {meeting.keyDecisions.length ? (
+          meeting.keyDecisions.map((d) => (
+            <div key={d.id}>
+              <span>↗</span>
+              <p>
+                {d.decision}
+                {d.rationale && <small>{d.rationale}</small>}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="muted">No hay decisiones identificadas.</p>
+        )}
+      </div>
+      {!!meeting.unresolvedQuestions?.length && (
+        <>
+          <h2>Preguntas pendientes</h2>
+          <ul>
+            {meeting.unresolvedQuestions.map((q, i) => (
+              <li key={i}>{q}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      <div className="section-title">
+        <FileText size={16} />
+        <h2>Tus notas</h2>
+        <span>GUARDADO AUTOMÁTICO</span>
+      </div>
+      <TipTapEditor
+        editable={!s.isProcessingAI}
+        key={meeting.id}
+        content={meeting.manualNotes}
+        onChange={(manualNotes) => s.updateMeeting(meeting.id, { manualNotes })}
+      />
+      {meeting.originalNotes && (
+        <details>
+          <summary>Apuntes originales</summary>
+          <p className="original-notes">{meeting.originalNotes}</p>
+        </details>
+      )}
+      <details className="transcript-panel" open>
+        <summary>
+          Transcripción y audio <span>{meeting.rawTranscript.length} fragmentos</span>
+        </summary>
+        <AudioPlayer audioUrl={url} currentPlaybackTime={seek} onSeek={setSeek} />
+        <div className="transcript-lines">
+          {meeting.rawTranscript.map((t) => (
+            <button key={t.id} onClick={() => setSeek(t.timestamp)}>
+              <time>
+                {Math.floor(t.timestamp / 60)}:
+                {Math.floor(t.timestamp % 60)
+                  .toString()
+                  .padStart(2, '0')}
+              </time>
+              <p>
+                <strong>{t.speaker}</strong>
+                {t.text}
+              </p>
+            </button>
+          ))}
+        </div>
+        {!meeting.rawTranscript.length && (
+          <p className="muted">La transcripción se genera al finalizar o procesar el audio.</p>
+        )}
+      </details>
+    </section>
+  );
+}

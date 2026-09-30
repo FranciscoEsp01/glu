@@ -22,3 +22,22 @@ pnpm-debug.log*
 
 # Rust / Tauri
 src-tauri/target/
+
+# Secrets and meeting content
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+recordings/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+# Generated test outputs
+playwright-report/
+test-results/
+*.tsbuildinfo
+src-tauri/gen/
+
+# Local compiled application
+release/

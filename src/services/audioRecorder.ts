@@ -1,182 +1,141 @@
-import { TranscriptSegment } from '../types/meeting';
-
-export interface AudioVisualizerCallback {
-  (levels: number[]): void;
-}
-
-export interface TranscriptChunkCallback {
-  (segment: TranscriptSegment): void;
-}
-
+import { desktop, invoke } from '../lib/platform';
+import { storage } from './storage';
 export class AudioRecordingService {
-  private mediaRecorder: MediaRecorder | null = null;
-  private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  private microphoneStream: MediaStream | null = null;
-  private animationFrameId: number | null = null;
-  private audioChunks: Blob[] = [];
-  private transcriptIntervalId: any = null;
-  private recordingStartTime: number = 0;
-  private accumulatedSegments: TranscriptSegment[] = [];
-
-  private visualizerCallback: AudioVisualizerCallback | null = null;
-  private transcriptCallback: TranscriptChunkCallback | null = null;
-
-  private sampleLivePhrases = [
-    { speaker: 'Tú (Micrófono)', text: 'Estamos revisando el cronograma de entregas de la versión 1.0.' },
-    { speaker: 'Participante (Audio Sistema)', text: 'De acuerdo, por nuestra parte los endpoints de la API ya están listos en staging.' },
-    { speaker: 'Tú (Micrófono)', text: 'Perfecto, validemos la integración con la base de datos local y los tests de carga.' },
-    { speaker: 'Participante (Audio Sistema)', text: 'Anotado. Dejaremos configurada la exportación automática para el equipo.' },
-  ];
-
+  private recorder?: MediaRecorder;
+  private context?: AudioContext;
+  private streams: MediaStream[] = [];
+  private chunks: Blob[] = [];
+  private frame = 0;
+  private native = false;
+  private id = '';
+  private writeQueue: Promise<void> = Promise.resolve();
+  private failure?: Error;
   async startRecording(
-    onVisualizer: AudioVisualizerCallback,
-    onTranscriptChunk?: TranscriptChunkCallback
-  ): Promise<boolean> {
+    id: string,
+    source: 'microphone' | 'dual',
+    onLevels: (levels: number[]) => void,
+    onFailure: (message: string) => void,
+  ) {
+    this.id = id;
+    this.failure = undefined;
+    this.native = desktop();
+    if (this.native) {
+      await invoke('start_audio_capture', { id, dual: source === 'dual' });
+      return;
+    }
     try {
-      this.visualizerCallback = onVisualizer;
-      this.transcriptCallback = onTranscriptChunk || null;
-      this.audioChunks = [];
-      this.accumulatedSegments = [];
-      this.recordingStartTime = Date.now();
-
-      // Intentamos acceder al micrófono real
-      let stream: MediaStream | null = null;
-      try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          this.microphoneStream = stream;
-        }
-      } catch (e) {
-        console.warn('Micrófono real no accesible, activando modo simulación de audio dual:', e);
+      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder)
+        throw new Error('Este navegador no permite grabar. Usa Chrome o la app de escritorio.');
+      if (source === 'dual') {
+        const system = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        this.streams.push(system);
+        if (!system.getAudioTracks().length)
+          throw new Error(
+            'No se compartió audio. Selecciona una pestaña con «Compartir audio», o usa solo micrófono.',
+          );
       }
-
-      if (stream) {
-        // Configurar Web Audio API
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        this.audioContext = new AudioCtx();
-        const source = this.audioContext.createMediaStreamSource(stream);
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 64;
-        source.connect(this.analyser);
-
-        // Configurar MediaRecorder
-        this.mediaRecorder = new MediaRecorder(stream);
-        this.mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            this.audioChunks.push(event.data);
-          }
-        };
-        this.mediaRecorder.start(1000);
-      }
-
-      // Loop de animación de onda de audio
-      this.startWaveformLoop();
-
-      // Simulación de fragmentos de transcripción en tiempo real cada 7 segundos
-      let phraseIndex = 0;
-      this.transcriptIntervalId = setInterval(() => {
-        const elapsedSec = (Date.now() - this.recordingStartTime) / 1000;
-        const phrase = this.sampleLivePhrases[phraseIndex % this.sampleLivePhrases.length];
-        const segment: TranscriptSegment = {
-          id: `live-seg-${Date.now()}`,
-          speaker: phrase.speaker,
-          text: phrase.text,
-          timestamp: Math.floor(elapsedSec),
-          duration: 6,
-        };
-        this.accumulatedSegments.push(segment);
-        if (this.transcriptCallback) {
-          this.transcriptCallback(segment);
-        }
-        phraseIndex++;
-      }, 7000);
-
-      return true;
-    } catch (error) {
-      console.error('Error iniciando grabación:', error);
-      return false;
-    }
-  }
-
-  private startWaveformLoop() {
-    const dataArray = new Uint8Array(32);
-
-    const updateWaveform = () => {
-      if (this.analyser) {
-        this.analyser.getByteFrequencyData(dataArray);
-        // Normalizar niveles de 0 a 1 para 12 barras
-        const bars: number[] = [];
-        const step = Math.floor(dataArray.length / 12);
-        for (let i = 0; i < 12; i++) {
-          const val = dataArray[i * step] / 255;
-          bars.push(Math.max(0.15, val));
-        }
-        if (this.visualizerCallback) {
-          this.visualizerCallback(bars);
-        }
-      } else {
-        // Onda sintética suave si no hay micrófono físico
-        const time = Date.now() / 200;
-        const bars: number[] = [];
-        for (let i = 0; i < 12; i++) {
-          const v = Math.sin(time + i * 0.5) * 0.4 + 0.5;
-          bars.push(Math.max(0.2, v));
-        }
-        if (this.visualizerCallback) {
-          this.visualizerCallback(bars);
-        }
-      }
-
-      this.animationFrameId = requestAnimationFrame(updateWaveform);
-    };
-
-    updateWaveform();
-  }
-
-  async stopRecording(): Promise<{ audioUrl?: string; transcript: TranscriptSegment[]; durationSec: number }> {
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-
-    if (this.transcriptIntervalId) {
-      clearInterval(this.transcriptIntervalId);
-      this.transcriptIntervalId = null;
-    }
-
-    const durationSec = Math.max(1, Math.round((Date.now() - this.recordingStartTime) / 1000));
-
-    let audioUrl: string | undefined = undefined;
-
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      await new Promise<void>((resolve) => {
-        if (!this.mediaRecorder) return resolve();
-        this.mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-          audioUrl = URL.createObjectURL(audioBlob);
-          resolve();
-        };
-        this.mediaRecorder.stop();
+      const mic = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+        video: false,
       });
+      this.streams.push(mic);
+      this.context = new AudioContext();
+      await this.context.resume();
+      const output = this.context.createMediaStreamDestination();
+      const analyser = this.context.createAnalyser();
+      analyser.fftSize = 64;
+      for (const stream of this.streams) {
+        const input = this.context.createMediaStreamSource(stream);
+        const gain = this.context.createGain();
+        gain.gain.value = 1 / this.streams.length;
+        input.connect(gain);
+        gain.connect(output);
+        gain.connect(analyser);
+        stream
+          .getAudioTracks()
+          .forEach(
+            (track) =>
+              (track.onended = () =>
+                onFailure('La fuente de audio se desconectó. Finaliza para guardar lo capturado.')),
+          );
+      }
+      const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((t) =>
+        MediaRecorder.isTypeSupported(t),
+      );
+      this.chunks = [];
+      this.writeQueue = Promise.resolve();
+      this.recorder = new MediaRecorder(output.stream, mime ? { mimeType: mime } : undefined);
+      this.recorder.ondataavailable = (event) => {
+        if (!event.data.size) return;
+        this.chunks.push(event.data);
+        const snapshot = new Blob(this.chunks, { type: this.recorder!.mimeType });
+        this.writeQueue = this.writeQueue
+          .then(() => storage.putAudio(this.id, snapshot))
+          .catch((error) => {
+            this.failure = new Error('No se pudo guardar el audio en el dispositivo.');
+            onFailure(String(error));
+          });
+      };
+      this.recorder.onerror = () => {
+        this.failure = new Error(
+          'El grabador encontró un error. Finaliza para recuperar el audio.',
+        );
+        onFailure(this.failure.message);
+      };
+      this.recorder.start(5000);
+      const bins = new Uint8Array(analyser.frequencyBinCount);
+      const draw = () => {
+        analyser.getByteFrequencyData(bins);
+        onLevels(
+          Array.from({ length: 12 }, (_, i) =>
+            this.recorder?.state === 'paused' ? 0 : bins[i * 2] / 255,
+          ),
+        );
+        this.frame = requestAnimationFrame(draw);
+      };
+      draw();
+    } catch (error) {
+      this.cleanup();
+      throw error;
     }
-
-    if (this.microphoneStream) {
-      this.microphoneStream.getTracks().forEach((track) => track.stop());
-      this.microphoneStream = null;
+  }
+  async pause(paused: boolean) {
+    if (this.native) {
+      await invoke('pause_audio_capture', { paused });
+      return;
     }
-
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      this.audioContext.close();
-      this.audioContext = null;
+    if (paused && this.recorder?.state === 'recording') this.recorder.pause();
+    if (!paused && this.recorder?.state === 'paused') this.recorder.resume();
+  }
+  async stopRecording(): Promise<void> {
+    if (this.native) {
+      await invoke('stop_audio_capture');
+      return;
     }
-
-    return {
-      audioUrl,
-      transcript: this.accumulatedSegments,
-      durationSec,
-    };
+    try {
+      if (this.recorder && this.recorder.state !== 'inactive')
+        await new Promise<void>((resolve) => {
+          this.recorder!.onstop = () => resolve();
+          this.recorder!.stop();
+        });
+      await this.writeQueue;
+      if (this.failure) throw this.failure;
+      if (!this.chunks.length) throw new Error('No se capturó audio.');
+    } finally {
+      this.cleanup();
+    }
+  }
+  private cleanup() {
+    cancelAnimationFrame(this.frame);
+    this.streams.forEach((s) =>
+      s.getTracks().forEach((t) => {
+        t.onended = null;
+        t.stop();
+      }),
+    );
+    this.streams = [];
+    void this.context?.close();
+    this.context = undefined;
   }
 }
-
 export const audioService = new AudioRecordingService();

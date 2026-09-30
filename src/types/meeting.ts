@@ -1,12 +1,10 @@
 export type TemplateType = 'general' | 'sales' | 'one_on_one' | 'ux_research' | 'standup';
-
 export interface Participant {
   id: string;
   name: string;
   avatar?: string;
   role?: string;
 }
-
 export interface ActionItem {
   id: string;
   text: string;
@@ -15,26 +13,23 @@ export interface ActionItem {
   dueDate?: string;
   priority?: 'low' | 'medium' | 'high';
 }
-
 export interface KeyDecision {
   id: string;
   decision: string;
   rationale?: string;
   category?: string;
 }
-
 export interface TranscriptSegment {
   id: string;
-  speaker: string; // e.g. "Francisco (Host)", "Clara", "Speaker 1"
+  speaker: string;
   text: string;
-  timestamp: number; // in seconds
+  timestamp: number;
   duration?: number;
 }
-
 export interface Meeting {
   id: string;
   title: string;
-  date: string; // ISO string
+  date: string;
   durationMinutes: number;
   templateType: TemplateType;
   participants: Participant[];
@@ -43,14 +38,17 @@ export interface Meeting {
   keyDecisions: KeyDecision[];
   unresolvedQuestions?: string[];
   rawTranscript: TranscriptSegment[];
-  manualNotes: string; // Rich text / TipTap HTML / markdown
-  audioUrl?: string; // Local object URL or mock audio
+  manualNotes: string;
+  originalNotes?: string;
+  audioUrl?: string;
   audioDurationSec?: number;
+  hasAudio?: boolean;
   tags: string[];
   category: 'today' | 'this_week' | 'sales' | 'one_on_one' | 'engineering' | 'archived';
   isStarred?: boolean;
+  status?: 'recording' | 'pending' | 'processing' | 'ready' | 'error';
+  error?: string;
 }
-
 export interface TemplateDefinition {
   id: TemplateType;
   name: string;
@@ -60,25 +58,16 @@ export interface TemplateDefinition {
   systemPrompt: string;
   defaultSections: string[];
 }
-
-export interface AudioRecordingState {
-  isRecording: boolean;
-  isPaused: boolean;
-  durationSeconds: number;
-  audioLevels: number[];
-  currentNote: string;
-  rapidNotes: string[];
-  selectedTemplate: TemplateType;
-  meetingTitle: string;
-}
-
 export interface AISettings {
   geminiApiKey: string;
   deepgramApiKey: string;
-  openaiApiKey: string;
-  selectedModel: 'gemini-2.0-flash' | 'claude-3-5-sonnet' | 'gpt-4o';
-  useMockEngine: boolean;
+  slackToken?: string;
+  slackChannel?: string;
+  notionToken?: string;
+  notionParentPage?: string;
+  selectedModel: string;
   saveLocalAudio: boolean;
   theme: 'dark' | 'light' | 'system';
   preferredLanguage: 'es' | 'en';
+  captureSource: 'microphone' | 'dual';
 }

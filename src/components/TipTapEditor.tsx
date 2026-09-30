@@ -1,17 +1,16 @@
 import React, { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
-import { 
-  Bold, 
-  Italic, 
-  List, 
-  ListOrdered, 
-  CheckSquare, 
-  Heading2, 
+import { TaskList, TaskItem } from '@tiptap/extension-list';
+import {
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  CheckSquare,
+  Heading2,
   Code,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 
 interface TipTapEditorProps {
@@ -42,9 +41,13 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
+
+  useEffect(() => {
+    editor?.setEditable(editable);
+  }, [editable, editor]);
 
   if (!editor) {
     return null;
@@ -58,7 +61,9 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
           <button
             onClick={() => editor.chain().focus().toggleBold().run()}
             className={`p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-xs text-gray-600 dark:text-gray-300 ${
-              editor.isActive('bold') ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold' : ''
+              editor.isActive('bold')
+                ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold'
+                : ''
             }`}
             title="Negrita (Cmd+B)"
           >
@@ -67,7 +72,9 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
           <button
             onClick={() => editor.chain().focus().toggleItalic().run()}
             className={`p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-xs text-gray-600 dark:text-gray-300 ${
-              editor.isActive('italic') ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold' : ''
+              editor.isActive('italic')
+                ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold'
+                : ''
             }`}
             title="Cursiva (Cmd+I)"
           >
@@ -76,7 +83,9 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             className={`p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-xs text-gray-600 dark:text-gray-300 ${
-              editor.isActive('heading', { level: 2 }) ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold' : ''
+              editor.isActive('heading', { level: 2 })
+                ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold'
+                : ''
             }`}
             title="Título H2"
           >
@@ -86,7 +95,9 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
           <button
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             className={`p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-xs text-gray-600 dark:text-gray-300 ${
-              editor.isActive('bulletList') ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold' : ''
+              editor.isActive('bulletList')
+                ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold'
+                : ''
             }`}
             title="Lista de viñetas"
           >
@@ -95,7 +106,9 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
           <button
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             className={`p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-xs text-gray-600 dark:text-gray-300 ${
-              editor.isActive('orderedList') ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold' : ''
+              editor.isActive('orderedList')
+                ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold'
+                : ''
             }`}
             title="Lista numerada"
           >
@@ -104,7 +117,9 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
           <button
             onClick={() => editor.chain().focus().toggleTaskList().run()}
             className={`p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-xs text-gray-600 dark:text-gray-300 ${
-              editor.isActive('taskList') ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold' : ''
+              editor.isActive('taskList')
+                ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold'
+                : ''
             }`}
             title="Lista de tareas con checkboxes"
           >
@@ -113,7 +128,9 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
           <button
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             className={`p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-xs text-gray-600 dark:text-gray-300 ${
-              editor.isActive('codeBlock') ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold' : ''
+              editor.isActive('codeBlock')
+                ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold'
+                : ''
             }`}
             title="Bloque de código"
           >
