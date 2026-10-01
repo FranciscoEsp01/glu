@@ -1,3 +1,5 @@
+import { BillingModal } from './components/BillingModal';
+import { useBillingStore } from './store/useBillingStore';
 import { useAccount } from './components/AccountContext';
 import { useEffect } from 'react';
 import { useMeetingStore } from './store/useMeetingStore';
@@ -14,6 +16,29 @@ import { desktop } from './lib/platform';
 export function App() {
   const s = useMeetingStore();
   const account = useAccount();
+  useEffect(() => {
+    let lastRefresh = 0;
+    const refresh = () => {
+      if (Date.now() - lastRefresh > 5000) {
+        lastRefresh = Date.now();
+        void useBillingStore.getState().refresh();
+      }
+    };
+    const required = () => {
+      useBillingStore.getState().setOpen(true);
+      refresh();
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    const usageChanged = () => void useBillingStore.getState().refresh();
+    window.addEventListener('glu-billing-refresh', usageChanged);
+    window.addEventListener('glu-billing-required', required);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('glu-billing-refresh', usageChanged);
+      window.removeEventListener('glu-billing-required', required);
+    };
+  }, []);
   useEffect(() => {
     void s.initialize();
   }, []);
@@ -104,6 +129,7 @@ export function App() {
       <CommandPalette />
       <SettingsModal />
       <NewMeetingModal />
+      <BillingModal />
     </main>
   );
 }

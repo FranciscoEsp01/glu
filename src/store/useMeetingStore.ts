@@ -1,3 +1,4 @@
+import { billingRequest } from '../services/billing';
 import { create } from 'zustand';
 import { Meeting, TemplateType, TranscriptSegment, AISettings } from '../types/meeting';
 import { audioService } from '../services/audioRecorder';
@@ -289,6 +290,7 @@ export const useMeetingStore = create<MeetingStoreState>((set, get) => ({
     set({ isProcessingAI: true, error: null });
     get().updateMeeting(id, { status: 'processing', error: undefined });
     try {
+      await billingRequest('billing', { action: 'authorize', feature: 'summary' });
       const settings = { ...get().settings };
       if (!meeting.rawTranscript.length && meeting.hasAudio) {
         const blob = desktop() ? undefined : await storage.getAudio(id);

@@ -37,3 +37,25 @@ La ampliación incluye pruebas de citas exactas, recuperación del historial, pr
 - No se verificó envío real de correo: falta configurar el proyecto Supabase/SMTP del propietario.
 - No se verificó la compilación nativa de estos cambios: Cargo no está instalado en este entorno. Las validaciones nativas anteriores de este documento corresponden a la versión previa al login.
 - Las cuentas no incluyen sincronización ni equipos; véase `AUTENTICACION.md` para configuración, migración del historial previo y límites de la separación local.
+
+
+## Actualización: suscripciones (1 de octubre de 2026)
+
+- Integración Stripe Checkout/Portal, cancelación al vencimiento y reactivación; estados de impago y control de acceso real en Edge Functions.
+- IA de resúmenes y preguntas trasladada al backend con cuotas por usuario; el acceso a notas/historial/exportaciones permanece disponible sin plan pagado.
+- 22 pruebas de lógica y backend aprobadas: incluyen firmas del SDK de Stripe, reconciliación de eventos duplicados/antiguos, compra duplicada, cancelación por propietario, recuperación de pagos, denegación de IA y cuotas. La migración, permisos RLS y funciones atómicas se ejecutaron sobre PostgreSQL embebido (PGlite).
+- 20 pruebas de navegador aprobadas entre los flujos existentes y los cuatro nuevos casos de facturación. Se corrigió una superposición que impedía pulsar Gestionar pagos ante un pago fallido.
+- Comprobación TypeScript del backend (`npm run check:billing`) y build web correctos. Vista de facturación inspeccionada mediante captura.
+- Pendientes externos: despliegue Supabase, configuración Stripe/SMTP, prueba real en Stripe test y compilación nativa (Cargo no está instalado). No se realizaron cobros reales. Las pruebas de pagos usan respuestas controladas; no certifican operación en producción.
+
+
+## Entrega macOS 0.4.0 (1 de octubre de 2026)
+
+- Se encontró el toolchain Rust instalado en `/private/tmp/glu-cargo` y `/private/tmp/glu-rustup`; no figuraba en el PATH. Queda resuelta la verificación nativa pendiente de las secciones anteriores.
+- Compilación Rust/Swift/Tauri en modo release correcta para Apple Silicon, macOS 15+.
+- Aplicación actualizada en `release/Glu.app` e instalador `release/Glu_0.4.0_aarch64.dmg`.
+- Versión anterior preservada en `release/archive/Glu-0.3.0.app`.
+- Firma ad hoc del bundle validada con `codesign --verify --deep --strict`. Imagen de disco validada con `hdiutil verify`.
+- Inicio de la aplicación nativa y pantalla de acceso comprobados mediante accesibilidad de macOS (`tauri://localhost`).
+- El paquete incluye login y facturación, pero el acceso muestra configuración pendiente: no hay URL/clave pública Supabase configuradas en este workspace. No se validaron correos, Keychain con una sesión real ni cobros Stripe reales. Se requiere recompilar tras configurar `.env.local` y activar el backend.
+- El paquete tiene firma local; no cuenta con Developer ID ni notarización pública. Véase `MACOS.md`.

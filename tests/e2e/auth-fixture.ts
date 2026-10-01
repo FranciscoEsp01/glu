@@ -1,3 +1,4 @@
+import { mockBilling } from './billing-fixture';
 import { test as base, expect, type Page } from '@playwright/test';
 export const accountId = '11111111-1111-4111-8111-111111111111';
 export function session(id = accountId, email = 'ana@example.com') {
@@ -22,6 +23,10 @@ export function session(id = accountId, email = 'ana@example.com') {
 }
 export async function mockAuth(page: Page, signedIn = false) {
   const initial = session();
+  await mockBilling(page);
+  await page.route('https://glu-test.supabase.co/functions/v1/paid-ai', (route) =>
+    route.fulfill({ status: 503, json: { error: 'El servicio de IA no está disponible.' } }),
+  );
   await page.route('https://glu-test.supabase.co/auth/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/user')) {

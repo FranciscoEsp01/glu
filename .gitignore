@@ -26,6 +26,7 @@ src-tauri/target/
 # Secrets and meeting content
 .env
 .env.*
+.env.local
 !.env.example
 *.pem
 *.p12

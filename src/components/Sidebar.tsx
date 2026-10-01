@@ -1,3 +1,5 @@
+import { useBillingStore } from '../store/useBillingStore';
+import { PLANS, billingNotice } from '../services/billing';
 import { useAccount } from './AccountContext';
 import { useState } from 'react';
 import { auth, authError } from '../services/auth';
@@ -7,6 +9,7 @@ import { useMeetingStore } from '../store/useMeetingStore';
 export function Sidebar() {
   const s = useMeetingStore();
   const account = useAccount();
+  const billing = useBillingStore();
   const [signingOut, setSigningOut] = useState(false);
   async function signOut() {
     if (s.isRecording || s.isStarting || s.isProcessingAI || signingOut) return;
@@ -115,6 +118,21 @@ export function Sidebar() {
       <button className="backup-link" onClick={() => s.toggleBackup(true)}>
         Copias del historial
       </button>
+      <button className="billing-sidebar" onClick={() => billing.setOpen(true)}>
+        <strong>Plan y facturación</strong>
+        <span>
+          {billing.loading
+            ? 'Verificando…'
+            : billing.status
+              ? PLANS[billing.status.plan].name
+              : 'Consultar plan'}
+        </span>
+      </button>
+      {billing.status && billingNotice(billing.status.subscriptions) && (
+        <button className="billing-warning" onClick={() => billing.setOpen(true)}>
+          Revisa el estado de tu suscripción
+        </button>
+      )}
       <div className="account-footer">
         <span title={account.email}>{account.email}</span>
         <button

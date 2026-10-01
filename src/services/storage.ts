@@ -96,7 +96,6 @@ export const storage = {
       notionToken: '',
     };
     if (desktop()) {
-      settings.geminiApiKey = await invoke('secret_get', { name: 'gemini' });
       settings.deepgramApiKey = await invoke('secret_get', { name: 'deepgram' });
       settings.slackToken = await invoke('secret_get', { name: 'slack' });
       settings.notionToken = await invoke('secret_get', { name: 'notion' });
@@ -106,7 +105,6 @@ export const storage = {
   async saveSettings(settings: AISettings) {
     const { geminiApiKey, deepgramApiKey, slackToken, notionToken, ...publicSettings } = settings;
     if (desktop()) {
-      await invoke('secret_set', { name: 'gemini', value: geminiApiKey });
       await invoke('secret_set', { name: 'deepgram', value: deepgramApiKey });
       await invoke('secret_set', { name: 'slack', value: slackToken || '' });
       await invoke('secret_set', { name: 'notion', value: notionToken || '' });

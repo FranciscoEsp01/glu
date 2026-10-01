@@ -66,7 +66,8 @@ export function KnowledgeModal() {
             {busy ? 'Consultando…' : 'Responder con Gemini'}
           </button>
           <p className="privacy-caption">
-            Al responder, se envían tu pregunta y los fragmentos mostrados a Google Gemini.
+            Al responder, Glu valida tu plan Plus y envía tu pregunta y los fragmentos a Google
+            Gemini.
           </p>
         </form>
         {error && (

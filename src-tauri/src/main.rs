@@ -153,13 +153,6 @@ async fn transcribe(state: State<'_, AppState>, account: String, id: String, lan
     response(request).await
 }
 #[tauri::command]
-async fn summarize(state: State<'_, AppState>, account: String, model: String, body: Value) -> Result<Value, String> {
-    if !model.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'.') || model.is_empty() { return Err("Modelo inválido".into()); }
-    let request = state.http.post(format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"))
-        .header("x-goog-api-key", secret_get(account, "gemini".into())?).json(&body).send().await.map_err(|_| "No se pudo conectar a Gemini. Revisa tu conexión.")?;
-    response(request).await
-}
-#[tauri::command]
 async fn send_integration(state: State<'_, AppState>, account: String, provider: String, body: Value) -> Result<Value, String> {
     let url = match provider.as_str() { "slack" => "https://slack.com/api/chat.postMessage", "notion" => "https://api.notion.com/v1/pages", _ => return Err("Integración no admitida".into()) };
     if body.to_string().len() > 450_000 { return Err("El contenido es demasiado grande para enviarlo.".into()); }
@@ -187,6 +180,20 @@ async fn send_integration(state: State<'_, AppState>, account: String, provider:
     }
 }
 #[tauri::command]
+fn open_billing_url(url: String) -> Result<(), String> {
+    let parsed = reqwest::Url::parse(&url).map_err(|_| "Enlace inválido")?;
+    if parsed.scheme() != "https" || ![Some("checkout.stripe.com"), Some("billing.stripe.com")].contains(&parsed.host_str()) || !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err("Enlace de pago no permitido".into());
+    }
+    #[cfg(target_os = "macos")]
+    let result = Command::new("open").arg(parsed.as_str()).spawn();
+    #[cfg(target_os = "windows")]
+    let result = Command::new("rundll32.exe").arg("url.dll,FileProtocolHandler").arg(parsed.as_str()).spawn();
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let result = Command::new("xdg-open").arg(parsed.as_str()).spawn();
+    result.map(|_| ()).map_err(|_| "No se pudo abrir el navegador de pagos".into())
+}
+#[tauri::command]
 fn set_compact(window: tauri::WebviewWindow, compact: bool) -> Result<(), String> {
     window.set_min_size(Some(tauri::LogicalSize::new(if compact { 600. } else { 860. }, if compact { 240. } else { 540. }))).map_err(|e| e.to_string())?;
     window.set_size(tauri::LogicalSize::new(if compact { 640. } else { 1180. }, if compact { 300. } else { 780. })).map_err(|e| e.to_string())?;
@@ -211,6 +218,6 @@ fn main() {
         .on_window_event(|window, event| { if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             if window.state::<AppState>().child.lock().map(|c| c.is_some()).unwrap_or(false) { api.prevent_close(); let _ = window.emit("glu-close-blocked", ()); }
         } })
-        .invoke_handler(tauri::generate_handler![auth_session_get, auth_session_set, load_meetings, save_meetings, secret_get, secret_set, start_audio_capture, stop_audio_capture, pause_audio_capture, read_audio, playback_path, write_audio, delete_audio, transcribe, summarize, set_compact, send_integration])
+        .invoke_handler(tauri::generate_handler![auth_session_get, auth_session_set, load_meetings, save_meetings, secret_get, secret_set, start_audio_capture, stop_audio_capture, pause_audio_capture, read_audio, playback_path, write_audio, delete_audio, transcribe, open_billing_url, set_compact, send_integration])
         .run(tauri::generate_context!()).expect("No se pudo iniciar Glu");
 }

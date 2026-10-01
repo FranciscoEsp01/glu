@@ -18,19 +18,27 @@ npm run tauri build -- --bundles app
 
 La captura nativa requiere **macOS 15 o posterior** y permisos de micrófono y grabación de pantalla/audio. Se compila un auxiliar Swift usando ScreenCaptureKit; no se guardan imágenes de la pantalla. El build admite Apple Silicon e Intel según el target de compilación. La compilación verificada en este equipo es Apple Silicon. Windows no tiene todavía motor de captura nativo; la versión web permite usar micrófono y, cuando el navegador lo permita, compartir audio de una pestaña.
 
+## Versión macOS 0.4.0
+
+La app actualizada está en `release/Glu.app` y el instalador Apple Silicon en `release/Glu_0.4.0_aarch64.dmg`. Incluyen login y facturación. Consulta [macOS](docs/MACOS.md) para configurar los servicios, recompilar y conocer el alcance de la firma local. La app anterior está respaldada en `release/archive/`.
+
 ## Acceso de usuarios
 
 El acceso usa Supabase Auth con código por correo. Configura `.env.local` y la plantilla de correo siguiendo [Autenticación](docs/AUTENTICACION.md). Sin configuración no se abre el historial. Cada cuenta tiene historial, audios y credenciales locales separados; esta integración no sincroniza reuniones con la nube. El historial previo permanece intacto sin asignarse automáticamente.
 
+## Suscripciones
+
+Glu incluye planes Gratis, Pro y Plus con Stripe Checkout, portal de pagos, cancelación al final del período y manejo de pagos fallidos. Los resúmenes (Pro/Plus) y preguntas (Plus) pasan por Edge Functions con validación del plan y cuotas en servidor. Antes de activarlo, configura y despliega la base de datos y las funciones siguiendo [Suscripciones](docs/SUSCRIPCIONES.md). No se realizan cobros hasta configurar Stripe. La transcripción de audio sigue usando tu clave personal de Deepgram.
+
 ## Primer uso
 
-1. Inicia sesión con tu correo y el código recibido. Abre Configuración e introduce tus claves de Deepgram y Google Gemini. El modelo es configurable (valor inicial: `gemini-2.5-flash`). Debe estar disponible en tu cuenta.
+1. Inicia sesión con tu correo y el código recibido. Abre Configuración e introduce tu clave de Deepgram para transcribir audio. Para generar resúmenes, activa Pro o Plus desde Plan y facturación; Gemini se configura en el servidor.
 2. Elige micrófono o micrófono + sistema/pestaña, idioma y conservación de audio.
 3. Crea una reunión, informa a sus participantes y concede los permisos del sistema.
 4. Toma apuntes desde la cápsula. Pausar detiene ambas fuentes; finalizar guarda la reunión antes de llamar a los proveedores.
 5. Revisa el resumen, marca tareas, edita las notas, copia el contenido o descarga Markdown.
 
-También puedes pegar una transcripción o importar audio (hasta 250 MB) sin claves. La generación de resúmenes requiere Gemini; la transcripción de audio requiere Deepgram. En navegador, la captura dual exige seleccionar una fuente con audio compartido. Si no está disponible, Glu muestra un error y libera los dispositivos.
+También puedes pegar una transcripción o importar audio (hasta 250 MB) sin claves. La generación de resúmenes requiere un plan Pro o Plus activo y el backend configurado; la transcripción de audio requiere Deepgram. En navegador, la captura dual exige seleccionar una fuente con audio compartido. Si no está disponible, Glu muestra un error y libera los dispositivos.
 
 ## Funciones implementadas
 
@@ -49,7 +57,7 @@ También puedes pegar una transcripción o importar audio (hasta 250 MB) sin cla
 
 ## Datos y privacidad
 
-En escritorio, las claves se guardan en Keychain y las peticiones a proveedores se realizan desde Rust. En navegador solo permanecen en memoria durante la sesión. No se incluyen secretos en el repositorio.
+En escritorio, las claves personales de Deepgram y las integraciones se guardan en Keychain y sus peticiones se realizan desde Rust. Los resúmenes y las preguntas usan Gemini desde el servidor, con validación de suscripción. En navegador solo permanecen en memoria durante la sesión. No se incluyen secretos en el repositorio.
 
 El audio se envía a Deepgram y el texto a Google Gemini cuando procesas una reunión. Sus políticas y la configuración de tu cuenta aplican; Glu no afirma que los proveedores tengan retención cero. El historial local no está cifrado por esta versión; la protección del disco depende del sistema operativo.
 
@@ -73,7 +81,7 @@ Para usar un navegador Chromium instalado, define `PLAYWRIGHT_EXECUTABLE_PATH`. 
 
 Esta es una implementación funcional del flujo individual, no un SaaS comercial terminado. Requiere pruebas de una llamada real con permisos y credenciales del propietario antes de distribuirse a usuarios. La firma Developer ID y notarización no están configuradas.
 
-Pendientes de la visión de negocio: suscripciones y facturación, equipos, sincronización, OAuth de calendarios, OAuth de Slack/Notion, integración CRM, búsqueda vectorial entre reuniones, cifrado de la base local, Windows nativo y actualización automática firmada. Slack y Notion usan tokens configurados por el usuario, no un flujo OAuth público.
+Pendientes de la visión de negocio: equipos, sincronización, OAuth de calendarios, OAuth de Slack/Notion, integración CRM, búsqueda vectorial entre reuniones, cifrado de la base local, Windows nativo y actualización automática firmada. Slack y Notion usan tokens configurados por el usuario, no un flujo OAuth público.
 
 ## Referencias técnicas
 
@@ -88,7 +96,7 @@ En Configuración, despliega «Conectar Slack y Notion». Slack requiere un toke
 
 Los botones Slack y Notion muestran el contenido exacto antes de enviarlo. No incluyen el audio ni la transcripción completa. No hay reintentos automáticos de escrituras: si se pierde la conexión, revisa el destino para evitar duplicados. Las rutas están implementadas y probadas con servicios controlados; debes validarlas con tus propias cuentas.
 
-«Preguntar a mis reuniones» encuentra fragmentos por coincidencias de palabras en el dispositivo. Al pulsar Responder se envían la pregunta y hasta ocho fragmentos a Gemini. La respuesta solo se muestra con citas que coincidan literalmente con las fuentes. Esta versión no usa embeddings; preguntas sin términos relacionados pueden no encontrar evidencia.
+«Preguntar a mis reuniones» encuentra fragmentos por coincidencias de palabras en el dispositivo. Al pulsar Responder, el servidor comprueba el plan Plus y envía la pregunta y hasta ocho fragmentos a Gemini. La respuesta solo se muestra con citas que coincidan literalmente con las fuentes. Esta versión no usa embeddings; preguntas sin términos relacionados pueden no encontrar evidencia.
 
 «Copias del historial» exporta notas y transcripciones en JSON. No incluye audio, ajustes ni credenciales. Al restaurar, los IDs ya existentes conservan su contenido actual. Guarda los audios por separado si quieres conservarlos fuera de Glu.
 

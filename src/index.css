@@ -1347,3 +1347,123 @@ summary span {
     align-items: flex-start;
   }
 }
+
+.billing-modal {
+  width: min(950px, 95vw);
+  max-width: 950px;
+}
+.billing-current {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  background: var(--soft);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 20px 0;
+}
+.billing-current p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.billing-plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 22px 0 14px;
+}
+.billing-plan {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.billing-plan.selected {
+  border-color: var(--accent);
+  background: var(--soft);
+}
+.billing-plan h3 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.billing-price {
+  margin: 12px 0 20px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.billing-price small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.billing-plan ul {
+  display: grid;
+  gap: 12px;
+  flex: 1;
+  margin-bottom: 26px;
+}
+.billing-plan li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.billing-plan li svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.billing-confirm {
+  border: 1px solid var(--line);
+  padding: 16px;
+  border-radius: 12px;
+  margin-top: 20px;
+}
+.billing-confirm p {
+  margin: 10px 0;
+  font-size: 13px;
+}
+.billing-confirm button {
+  margin-right: 18px;
+}
+.billing-stripe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.billing-sidebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--soft);
+  margin-top: 12px;
+  font-size: 11px;
+}
+.billing-sidebar span {
+  color: var(--muted);
+}
+.billing-warning {
+  color: #a35132;
+  font-size: 11px;
+  text-align: left;
+  padding: 8px 0;
+}
+.billing-modal footer {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .billing-plans {
+    grid-template-columns: 1fr;
+  }
+}
+
+.billing-shade {
+  z-index: 110;
+}
+.billing-plan ul {
+  align-content: start;
+}

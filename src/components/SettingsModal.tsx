@@ -49,24 +49,10 @@ export function SettingsModal() {
             onChange={(e) => setDraft({ ...draft, deepgramApiKey: e.target.value })}
           />
         </label>
-        <label>
-          Clave de Gemini · resúmenes
-          <input
-            autoComplete="off"
-            type="password"
-            value={draft.geminiApiKey}
-            onChange={(e) => setDraft({ ...draft, geminiApiKey: e.target.value })}
-          />
-        </label>
-        <label>
-          Modelo de Gemini
-          <input
-            required
-            pattern="[a-zA-Z0-9.\-]+"
-            value={draft.selectedModel}
-            onChange={(e) => setDraft({ ...draft, selectedModel: e.target.value })}
-          />
-        </label>
+        <p className="notice">
+          Los resúmenes se incluyen en Pro y Plus. Las preguntas entre reuniones requieren Plus. No
+          necesitas configurar una clave de Gemini.
+        </p>
         <div className="form-row">
           <label>
             Idioma
@@ -114,9 +100,9 @@ export function SettingsModal() {
         </label>
         <p className="notice">
           El audio se guarda temporalmente para recuperar errores. Al procesar, se envía a Deepgram;
-          la transcripción y tus apuntes se envían a Google Gemini. El historial permanece en este
-          dispositivo. Si desactivas conservar audio, se elimina tras generar y guardar el resumen
-          correctamente.
+          la transcripción y tus apuntes pasan por el servidor de Glu para validar tu plan y se
+          envían a Google Gemini. El historial permanece en este dispositivo. Si desactivas
+          conservar audio, se elimina tras generar y guardar el resumen correctamente.
         </p>
         <details className="integration-settings">
           <summary>Conectar Slack y Notion</summary>

@@ -15,11 +15,10 @@ async function importText(page: import('@playwright/test').Page) {
 }
 async function configure(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Configuración', exact: true }).first().click();
-  await page.getByLabel('Clave de Gemini').fill('test-key-gemini');
   await page.getByLabel('Clave de Deepgram').fill('test-key-deepgram');
   await page.getByRole('button', { name: 'Guardar configuración' }).click();
 }
-test('Empty workspace, import, editing, persistent reload, actionable missing key', async ({
+test('Empty workspace, import, editing, persistent reload, actionable service failure', async ({
   page,
 }) => {
   await page.goto('/');
@@ -30,7 +29,7 @@ test('Empty workspace, import, editing, persistent reload, actionable missing ke
   await page.reload();
   await expect(page.getByLabel('Título de reunión')).toHaveValue('Revisión Acme');
   await page.getByRole('button', { name: 'Generar resumen', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Configura tu clave de Gemini');
+  await expect(page.getByRole('alert')).toContainText('El servicio de IA no está disponible');
   await expect(page.locator('.transcript-lines')).toContainText(
     'Ana: enviaré la propuesta el viernes.',
   );
@@ -45,7 +44,7 @@ test('Empty workspace, import, editing, persistent reload, actionable missing ke
 test('Real processing path uses provider result; secrets never persist; task completion and notes survive reload', async ({
   page,
 }) => {
-  await page.route('https://generativelanguage.googleapis.com/**', (route) =>
+  await page.route('https://glu-test.supabase.co/functions/v1/paid-ai', (route) =>
     route.fulfill({
       json: { candidates: [{ content: { parts: [{ text: JSON.stringify(summary) }] } }] },
     }),
@@ -66,8 +65,8 @@ test('Real processing path uses provider result; secrets never persist; task com
 test('Provider failure preserves transcript and permits retry without synthetic output', async ({
   page,
 }) => {
-  await page.route('https://generativelanguage.googleapis.com/**', (route) =>
-    route.fulfill({ status: 429, json: { error: 'quota' } }),
+  await page.route('https://glu-test.supabase.co/functions/v1/paid-ai', (route) =>
+    route.fulfill({ status: 429, json: { error: 'Error 429: cuota agotada' } }),
   );
   await page.goto('/');
   await configure(page);
@@ -125,7 +124,7 @@ test('Successful processing deletes audio only after saving the result when rete
       },
     }),
   );
-  await page.route('https://generativelanguage.googleapis.com/**', (route) =>
+  await page.route('https://glu-test.supabase.co/functions/v1/paid-ai', (route) =>
     route.fulfill({
       json: { candidates: [{ content: { parts: [{ text: JSON.stringify(summary) }] } }] },
     }),
@@ -161,7 +160,7 @@ test('A metadata storage failure prevents discarding the original audio', async 
       },
     }),
   );
-  await page.route('https://generativelanguage.googleapis.com/**', async (route) => {
+  await page.route('https://glu-test.supabase.co/functions/v1/paid-ai', async (route) => {
     await page.evaluate(() => {
       const original = Storage.prototype.setItem;
       Storage.prototype.setItem = function (key, value) {
@@ -191,10 +190,9 @@ test('A metadata storage failure prevents discarding the original audio', async 
 test('Questions display real citations and navigate back to the source meeting', async ({
   page,
 }) => {
-  await page.route('https://generativelanguage.googleapis.com/**', async (route) => {
+  await page.route('https://glu-test.supabase.co/functions/v1/paid-ai', async (route) => {
     const data = JSON.parse(route.request().postData()!);
-    const prompt: string = data.contents[0].parts[0].text;
-    const evidence = JSON.parse(prompt.split('EVIDENCIA: ')[1]);
+    const evidence = data.evidence;
     await route.fulfill({
       json: {
         candidates: [

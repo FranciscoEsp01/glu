@@ -1,0 +1,10 @@
+project_id = "glu"
+
+# JWTs are verified explicitly with auth.getUser in authenticated handlers.
+# Stripe authenticates with the signature of the raw request body.
+[functions.billing]
+verify_jwt = false
+[functions.stripe-webhook]
+verify_jwt = false
+[functions.paid-ai]
+verify_jwt = false
