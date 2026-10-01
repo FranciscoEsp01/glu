@@ -1,7 +1,26 @@
+import { useAccount } from './AccountContext';
+import { useState } from 'react';
+import { auth, authError } from '../services/auth';
+import { flushMeetings } from '../store/useMeetingStore';
 import { Search, Plus, Star, Settings, Mic } from 'lucide-react';
 import { useMeetingStore } from '../store/useMeetingStore';
 export function Sidebar() {
   const s = useMeetingStore();
+  const account = useAccount();
+  const [signingOut, setSigningOut] = useState(false);
+  async function signOut() {
+    if (s.isRecording || s.isStarting || s.isProcessingAI || signingOut) return;
+    setSigningOut(true);
+    try {
+      await flushMeetings();
+      const result = await auth?.signOut({ scope: 'local' });
+      if (result?.error) throw result.error;
+      window.location.reload();
+    } catch (error) {
+      useMeetingStore.setState({ error: authError(error) });
+      setSigningOut(false);
+    }
+  }
   const query = s.searchQuery.toLocaleLowerCase();
   const meetings = s.meetings.filter(
     (m) =>
@@ -96,6 +115,15 @@ export function Sidebar() {
       <button className="backup-link" onClick={() => s.toggleBackup(true)}>
         Copias del historial
       </button>
+      <div className="account-footer">
+        <span title={account.email}>{account.email}</span>
+        <button
+          disabled={signingOut || s.isRecording || s.isStarting || s.isProcessingAI}
+          onClick={() => void signOut()}
+        >
+          {signingOut ? 'Cerrando…' : 'Cerrar sesión'}
+        </button>
+      </div>
       <p className="local-label">Historial guardado en este dispositivo</p>
     </aside>
   );

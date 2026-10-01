@@ -25,3 +25,15 @@ Fecha: 30 de septiembre de 2026.
 El flujo individual está implementado. Aún no están implementadas las cuentas multiusuario, suscripciones, facturación, sincronización de equipos, OAuth de calendarios, OAuth público de Slack/Notion, integración CRM, búsqueda vectorial entre reuniones, cifrado de SQLite, captura nativa Windows ni actualizaciones firmadas. No se presentan botones de integración ficticios ni promesas de retención cero de proveedores.
 
 La ampliación incluye pruebas de citas exactas, recuperación del historial, previsualización antes de enviar y temporizador resistente a retrasos del navegador. Slack/Notion y preguntas a Gemini se validaron con respuestas controladas; no se enviaron mensajes reales.
+
+
+## Actualización: acceso de usuarios (1 de octubre de 2026)
+
+- Supabase Auth con código por correo, verificación remota de sesión, cierre y vencimiento de sesión.
+- Datos locales separados por cuenta: historial, audio, ajustes y credenciales de proveedores.
+- Build web correcto y 10 pruebas unitarias aprobadas.
+- 11 pruebas existentes de flujos aprobadas con sesión autenticada controlada; 5 pruebas nuevas de acceso aprobadas (código inválido/válido y cierre, cambio de cuenta, sesión rechazada, fallo de red y vencimiento).
+- Vista de acceso inspeccionada mediante captura de navegador.
+- No se verificó envío real de correo: falta configurar el proyecto Supabase/SMTP del propietario.
+- No se verificó la compilación nativa de estos cambios: Cargo no está instalado en este entorno. Las validaciones nativas anteriores de este documento corresponden a la versión previa al login.
+- Las cuentas no incluyen sincronización ni equipos; véase `AUTENTICACION.md` para configuración, migración del historial previo y límites de la separación local.

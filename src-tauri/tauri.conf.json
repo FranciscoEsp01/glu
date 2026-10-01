@@ -22,16 +22,22 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob: asset: http://asset.localhost; connect-src ipc: http://ipc.localhost https://api.deepgram.com https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self'",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob: asset: http://asset.localhost; connect-src ipc: http://ipc.localhost https://*.supabase.co https://api.deepgram.com https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self'",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/recordings/**"]
+        "scope": [
+          "$APPDATA/recordings/**",
+          "$APPDATA/accounts/*/recordings/**"
+        ]
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -13,6 +13,10 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1',
     url: 'http://127.0.0.1:1420',
-    reuseExistingServer: true,
+    reuseExistingServer: false,
+    env: {
+      VITE_SUPABASE_URL: 'https://glu-test.supabase.co',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'test-public-key',
+    },
   },
 });

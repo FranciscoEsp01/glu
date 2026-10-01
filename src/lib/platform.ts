@@ -1,3 +1,4 @@
+import { getAccountId } from '../services/account';
 type Tauri = {
   core: {
     convertFileSrc(path: string): string;
@@ -8,7 +9,12 @@ export const desktop = () => Boolean((window as unknown as { __TAURI__?: Tauri }
 export function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   const api = (window as unknown as { __TAURI__?: Tauri }).__TAURI__;
   if (!api) return Promise.reject(new Error('Esta función requiere la aplicación de escritorio.'));
-  return api.core.invoke<T>(command, args);
+  return api.core.invoke<T>(
+    command,
+    command.startsWith('auth_session_') || command === 'set_compact'
+      ? args
+      : { ...args, account: getAccountId() },
+  );
 }
 export const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);

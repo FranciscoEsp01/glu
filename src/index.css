@@ -1115,3 +1115,235 @@ summary span {
   display: inline-block;
   margin: 15px 0;
 }
+
+/* Account access */
+.auth-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #fafaf8;
+  color: #242925;
+}
+.auth-story {
+  padding: 48px 56px;
+  background: #e9eee4;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.auth-story .brand {
+  padding: 0;
+}
+.auth-story-content {
+  max-width: 470px;
+  padding: 70px 0;
+}
+.auth-kicker {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  color: #54684c;
+}
+.auth-story h1 {
+  font-size: clamp(34px, 4vw, 58px);
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+  margin: 22px 0;
+  font-weight: 600;
+}
+.auth-story p {
+  color: #63705e;
+  line-height: 1.8;
+  max-width: 360px;
+}
+.auth-story small {
+  color: #687660;
+  font-size: 12px;
+}
+.auth-note {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 44px;
+  padding: 22px;
+  border: 1px solid #ced8c7;
+  border-radius: 16px;
+  background: #f5f7f080;
+  color: #526c44;
+}
+.auth-note strong,
+.auth-note span {
+  display: block;
+}
+.auth-note strong {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.auth-note span {
+  font-size: 12px;
+  color: #6b7665;
+}
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+}
+.auth-icon {
+  display: inline-flex;
+  padding: 14px;
+  background: #edf1e9;
+  border-radius: 16px;
+  color: #657e52;
+  margin-bottom: 26px;
+}
+.auth-card h2 {
+  font-size: 29px;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.auth-description {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #74796f;
+  margin-bottom: 30px;
+  overflow-wrap: anywhere;
+}
+.auth-card label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.auth-card input {
+  display: block;
+  width: 100%;
+  margin: 10px 0 18px;
+  border: 1px solid #d8ddd2;
+  border-radius: 10px;
+  padding: 14px;
+  background: white;
+  color: #242925;
+  font-size: 15px;
+}
+.auth-card input:focus-visible {
+  outline: 2px solid #6c8758;
+  outline-offset: 2px;
+}
+.auth-submit {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 14px !important;
+  border-radius: 10px;
+}
+.auth-secondary {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  gap: 12px;
+  font-size: 12px;
+}
+.auth-secondary button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #586f49;
+}
+.auth-shell button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.auth-footnote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #7c8475;
+  font-size: 11px;
+  margin-top: 28px;
+}
+.auth-local-note {
+  font-size: 11px;
+  color: #7c8475;
+  line-height: 1.7;
+  text-align: center;
+  margin-top: 24px;
+}
+.auth-message {
+  background: #fff0e8;
+  color: #943d20;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.auth-loading {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+  justify-content: center;
+}
+.authenticated-app {
+  height: 100%;
+}
+.account-footer {
+  border-top: 1px solid var(--border-color);
+  margin-top: 8px;
+  padding: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+}
+.account-footer span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #78806f;
+}
+.account-footer button {
+  text-align: left;
+  color: #526c44;
+}
+.account-footer button:disabled {
+  opacity: 0.5;
+}
+.auth-expired {
+  position: fixed;
+  inset: 0;
+  background: #fafaf8;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  color: #242925;
+}
+.auth-expired button {
+  margin-top: 20px;
+}
+@media (max-width: 760px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+  }
+  .auth-story {
+    padding: 24px;
+  }
+  .auth-story-content,
+  .auth-story > small {
+    display: none;
+  }
+  .auth-panel {
+    padding: 36px 24px;
+    align-items: flex-start;
+  }
+}

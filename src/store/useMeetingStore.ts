@@ -65,7 +65,7 @@ const recordingClock = new RecordingClock();
 let timer: ReturnType<typeof setInterval> | undefined;
 let persistQueue = Promise.resolve();
 let persistenceError: unknown;
-async function flushed() {
+export async function flushMeetings() {
   await persistQueue;
   if (persistenceError) throw persistenceError;
 }
@@ -106,7 +106,7 @@ export const useMeetingStore = create<MeetingStoreState>((set, get) => ({
   restoreHistory: async (meetings) => {
     if (get().isRecording || get().isProcessingAI || get().isStarting)
       throw new Error('Finaliza la reunión activa antes de restaurar.');
-    await flushed();
+    await flushMeetings();
     await storage.save(meetings);
     set({ meetings, selectedMeetingId: get().selectedMeetingId || meetings[0]?.id || null });
   },
@@ -326,7 +326,7 @@ export const useMeetingStore = create<MeetingStoreState>((set, get) => ({
         status: 'ready',
         error: undefined,
       });
-      await flushed();
+      await flushMeetings();
       if (!settings.saveLocalAudio && meeting.hasAudio) {
         await storage.deleteAudio(id);
         get().updateMeeting(id, { hasAudio: false });

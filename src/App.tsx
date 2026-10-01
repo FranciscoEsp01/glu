@@ -1,3 +1,4 @@
+import { useAccount } from './components/AccountContext';
 import { useEffect } from 'react';
 import { useMeetingStore } from './store/useMeetingStore';
 import { TitleBar } from './components/TitleBar';
@@ -12,6 +13,7 @@ import { BackupModal } from './components/BackupModal';
 import { desktop } from './lib/platform';
 export function App() {
   const s = useMeetingStore();
+  const account = useAccount();
   useEffect(() => {
     void s.initialize();
   }, []);
@@ -28,6 +30,7 @@ export function App() {
   }, [s.settings.theme]);
   useEffect(() => {
     const action = (command: string) => {
+      if (!account.active) return;
       const state = useMeetingStore.getState();
       if (command === 'record') {
         if (state.isRecording) void state.stopRecordingAndProcess();
@@ -39,6 +42,7 @@ export function App() {
       else window.dispatchEvent(new Event('glu-notes'));
     };
     const key = (e: KeyboardEvent) => {
+      if (!account.active) return;
       if (!(e.metaKey || e.ctrlKey)) return;
       if (e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -74,7 +78,7 @@ export function App() {
       window.removeEventListener('beforeunload', unload);
       unlisteners.forEach((p) => void p.then((off) => off()));
     };
-  }, []);
+  }, [account.active]);
   return (
     <main className={`app-shell ${s.viewMode === 'floating_pill' ? 'compact-shell' : ''}`}>
       {s.viewMode === 'main' && (

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './auth-fixture';
 const summary = {
   title: 'Propuesta para Acme',
   executiveSummary: ['Ana enviará la propuesta el viernes.'],
@@ -37,7 +37,9 @@ test('Empty workspace, import, editing, persistent reload, actionable missing ke
   await page.keyboard.press('Meta+k');
   await expect(page.getByPlaceholder('Buscar reuniones, tareas, comandos...')).toBeVisible();
   await page.keyboard.press('Escape');
-  const persisted = await page.evaluate(() => localStorage.getItem('glu_meetings_data_v1'));
+  const persisted = await page.evaluate(() =>
+    localStorage.getItem('glu_meetings_data_v1:11111111-1111-4111-8111-111111111111'),
+  );
   expect(persisted).not.toContain('Iniciamos la reunión para revisar');
 });
 test('Real processing path uses provider result; secrets never persist; task completion and notes survive reload', async ({
@@ -142,7 +144,10 @@ test('Successful processing deletes audio only after saving the result when rete
   await expect(page.getByLabel('Título de reunión')).toHaveValue('Propuesta para Acme');
   expect(
     await page.evaluate(
-      () => JSON.parse(localStorage.getItem('glu_meetings_data_v1')!)[0].hasAudio,
+      () =>
+        JSON.parse(
+          localStorage.getItem('glu_meetings_data_v1:11111111-1111-4111-8111-111111111111')!,
+        )[0].hasAudio,
     ),
   ).toBe(false);
 });
@@ -160,7 +165,7 @@ test('A metadata storage failure prevents discarding the original audio', async 
     await page.evaluate(() => {
       const original = Storage.prototype.setItem;
       Storage.prototype.setItem = function (key, value) {
-        if (key === 'glu_meetings_data_v1')
+        if (key === 'glu_meetings_data_v1:11111111-1111-4111-8111-111111111111')
           throw new DOMException('Cuota agotada', 'QuotaExceededError');
         return original.call(this, key, value);
       };
@@ -234,7 +239,9 @@ test('History backup restores new meetings and preserves duplicates', async ({ p
   await page.getByLabel('Archivo de copia').setInputFiles(file!);
   await expect(page.getByText('0 reuniones nuevas · 1 ya existentes')).toBeVisible();
   await page.getByLabel('Cerrar copias').click();
-  await page.evaluate(() => localStorage.removeItem('glu_meetings_data_v1'));
+  await page.evaluate(() =>
+    localStorage.removeItem('glu_meetings_data_v1:11111111-1111-4111-8111-111111111111'),
+  );
   await page.reload();
   await page.getByRole('button', { name: 'Copias del historial', exact: true }).click();
   await page.getByLabel('Archivo de copia').setInputFiles(file!);
@@ -260,6 +267,7 @@ test('Native sharing waits for preview confirmation and displays only confirmed 
     (window as any).__TAURI__ = {
       core: {
         invoke: async (command: string, args: any) => {
+          if (command === 'auth_session_get') return sessionStorage.getItem('glu-auth-session');
           if (command === 'load_meetings') return null;
           if (command === 'secret_get') return args.name === 'slack' ? 'test-token' : '';
           if (command === 'send_integration') {

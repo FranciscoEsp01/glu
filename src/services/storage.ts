@@ -1,10 +1,11 @@
+import { accountKey } from './account';
 import { Meeting, AISettings } from '../types/meeting';
 import { desktop, invoke, fileUrl } from '../lib/platform';
 const KEY = 'glu_meetings_data_v1';
 let database: Promise<IDBDatabase> | undefined;
 function db() {
   return (database ??= new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('glu-media', 1);
+    const request = indexedDB.open(accountKey('glu-media'), 1);
     request.onupgradeneeded = () => request.result.createObjectStore('audio');
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -27,7 +28,7 @@ export const storage = {
   async load(): Promise<Meeting[]> {
     const saved = desktop()
       ? await invoke<string | null>('load_meetings')
-      : localStorage.getItem(KEY);
+      : localStorage.getItem(accountKey(KEY));
     const parsed = saved ? JSON.parse(saved) : [];
     if (!Array.isArray(parsed))
       throw new Error('El historial guardado no tiene un formato válido.');
@@ -40,7 +41,7 @@ export const storage = {
   async save(meetings: Meeting[]) {
     const data = JSON.stringify(meetings.map(({ audioUrl: _url, ...m }) => m));
     if (desktop()) await invoke('save_meetings', { data });
-    else localStorage.setItem(KEY, data);
+    else localStorage.setItem(accountKey(KEY), data);
   },
   async putAudio(id: string, blob: Blob) {
     if (desktop())
@@ -82,7 +83,7 @@ export const storage = {
     };
     let saved: Partial<AISettings> = {};
     try {
-      saved = JSON.parse(localStorage.getItem('glu_settings_v2') || '{}');
+      saved = JSON.parse(localStorage.getItem(accountKey('glu_settings_v2')) || '{}');
     } catch {
       /* Preserve defaults. */
     }
@@ -110,7 +111,6 @@ export const storage = {
       await invoke('secret_set', { name: 'slack', value: slackToken || '' });
       await invoke('secret_set', { name: 'notion', value: notionToken || '' });
     }
-    localStorage.setItem('glu_settings_v2', JSON.stringify(publicSettings));
-    localStorage.removeItem('glu_settings_v1');
+    localStorage.setItem(accountKey('glu_settings_v2'), JSON.stringify(publicSettings));
   },
 };

@@ -13,6 +13,9 @@
     "format": "prettier --write src tests *.json *.ts *.md src-tauri/*.json src-tauri/capabilities/*.json"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "@tiptap/core": "3.31.4",
+    "@tiptap/extension-list": "3.31.4",
     "@tiptap/pm": "3.31.4",
     "@tiptap/react": "3.31.4",
     "@tiptap/starter-kit": "3.31.4",
@@ -23,9 +26,7 @@
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
-    "zustand": "^5.0.3",
-    "@tiptap/extension-list": "3.31.4",
-    "@tiptap/core": "3.31.4"
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.56",

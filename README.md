@@ -18,9 +18,13 @@ npm run tauri build -- --bundles app
 
 La captura nativa requiere **macOS 15 o posterior** y permisos de micrófono y grabación de pantalla/audio. Se compila un auxiliar Swift usando ScreenCaptureKit; no se guardan imágenes de la pantalla. El build admite Apple Silicon e Intel según el target de compilación. La compilación verificada en este equipo es Apple Silicon. Windows no tiene todavía motor de captura nativo; la versión web permite usar micrófono y, cuando el navegador lo permita, compartir audio de una pestaña.
 
+## Acceso de usuarios
+
+El acceso usa Supabase Auth con código por correo. Configura `.env.local` y la plantilla de correo siguiendo [Autenticación](docs/AUTENTICACION.md). Sin configuración no se abre el historial. Cada cuenta tiene historial, audios y credenciales locales separados; esta integración no sincroniza reuniones con la nube. El historial previo permanece intacto sin asignarse automáticamente.
+
 ## Primer uso
 
-1. Abre Configuración e introduce tus claves de Deepgram y Google Gemini. El modelo es configurable (valor inicial: `gemini-2.5-flash`). Debe estar disponible en tu cuenta.
+1. Inicia sesión con tu correo y el código recibido. Abre Configuración e introduce tus claves de Deepgram y Google Gemini. El modelo es configurable (valor inicial: `gemini-2.5-flash`). Debe estar disponible en tu cuenta.
 2. Elige micrófono o micrófono + sistema/pestaña, idioma y conservación de audio.
 3. Crea una reunión, informa a sus participantes y concede los permisos del sistema.
 4. Toma apuntes desde la cápsula. Pausar detiene ambas fuentes; finalizar guarda la reunión antes de llamar a los proveedores.
@@ -49,7 +53,7 @@ En escritorio, las claves se guardan en Keychain y las peticiones a proveedores 
 
 El audio se envía a Deepgram y el texto a Google Gemini cuando procesas una reunión. Sus políticas y la configuración de tu cuenta aplican; Glu no afirma que los proveedores tengan retención cero. El historial local no está cifrado por esta versión; la protección del disco depende del sistema operativo.
 
-En macOS los archivos residen en `~/Library/Application Support/com.glu.meetingai/`. SQLite guarda el historial; `recordings/<id>/` conserva audio y fragmentos recuperables. Los fragmentos CAF se mezclan a WAV al finalizar. En web se escriben checkpoints cada 5 segundos; un cierre abrupto puede perder el último intervalo y la recuperación depende del formato soportado por el navegador.
+En macOS los archivos residen en `~/Library/Application Support/com.glu.meetingai/`. Cada cuenta usa `accounts/<user-id>/`: SQLite guarda su historial y `recordings/<id>/` conserva audio y fragmentos recuperables. Los fragmentos CAF se mezclan a WAV al finalizar. En web se escriben checkpoints cada 5 segundos; un cierre abrupto puede perder el último intervalo y la recuperación depende del formato soportado por el navegador.
 
 Si desactivas conservar audio, se elimina solo después de generar y guardar el resumen con éxito. Mientras exista un error, el audio se conserva para reintentar. Cambiar esta opción no borra retroactivamente otras reuniones: puedes eliminarlas desde su vista.
 
@@ -69,7 +73,7 @@ Para usar un navegador Chromium instalado, define `PLAYWRIGHT_EXECUTABLE_PATH`. 
 
 Esta es una implementación funcional del flujo individual, no un SaaS comercial terminado. Requiere pruebas de una llamada real con permisos y credenciales del propietario antes de distribuirse a usuarios. La firma Developer ID y notarización no están configuradas.
 
-Pendientes de la visión de negocio: suscripciones y facturación, cuentas y equipos, sincronización, OAuth de calendarios, OAuth de Slack/Notion, integración CRM, búsqueda vectorial entre reuniones, cifrado de la base local, Windows nativo y actualización automática firmada. Slack y Notion usan tokens configurados por el usuario, no un flujo OAuth público.
+Pendientes de la visión de negocio: suscripciones y facturación, equipos, sincronización, OAuth de calendarios, OAuth de Slack/Notion, integración CRM, búsqueda vectorial entre reuniones, cifrado de la base local, Windows nativo y actualización automática firmada. Slack y Notion usan tokens configurados por el usuario, no un flujo OAuth público.
 
 ## Referencias técnicas
 
