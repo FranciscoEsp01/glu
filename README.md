@@ -18,9 +18,9 @@ npm run tauri build -- --bundles app
 
 La captura nativa requiere **macOS 15 o posterior** y permisos de micrófono y grabación de pantalla/audio. Se compila un auxiliar Swift usando ScreenCaptureKit; no se guardan imágenes de la pantalla. El build admite Apple Silicon e Intel según el target de compilación. La compilación verificada en este equipo es Apple Silicon. Windows no tiene todavía motor de captura nativo; la versión web permite usar micrófono y, cuando el navegador lo permita, compartir audio de una pestaña.
 
-## Versión macOS 0.4.0
+## Versión macOS 0.5.0
 
-La app actualizada está en `release/Glu.app` y el instalador Apple Silicon en `release/Glu_0.4.0_aarch64.dmg`. Incluyen login y facturación. Consulta [macOS](docs/MACOS.md) para configurar los servicios, recompilar y conocer el alcance de la firma local. La app anterior está respaldada en `release/archive/`.
+La app actualizada está en `release/Glu.app` y el instalador Apple Silicon en `release/Glu_0.5.0_aarch64.dmg`. Incluyen login y facturación. Consulta [macOS](docs/MACOS.md) para configurar los servicios, recompilar y conocer el alcance de la firma local. La app anterior está respaldada en `release/archive/`.
 
 ## Acceso de usuarios
 

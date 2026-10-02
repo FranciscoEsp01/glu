@@ -1,4 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod oauth;
+use oauth::{auth_oauth_sign_in, auth_oauth_cancel, OAuthState};
 use std::{io::{BufRead, BufReader, Write}, path::PathBuf, process::{Child, Command, Stdio}, sync::Mutex, time::Duration};
 use tauri::{Manager, State, Emitter};
 use serde_json::{Value, json};
@@ -201,6 +203,7 @@ fn set_compact(window: tauri::WebviewWindow, compact: bool) -> Result<(), String
 }
 fn main() {
     tauri::Builder::default()
+        .manage(OAuthState::default())
         .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, shortcut, event| {
             use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
             if event.state() == ShortcutState::Pressed {
@@ -218,6 +221,6 @@ fn main() {
         .on_window_event(|window, event| { if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             if window.state::<AppState>().child.lock().map(|c| c.is_some()).unwrap_or(false) { api.prevent_close(); let _ = window.emit("glu-close-blocked", ()); }
         } })
-        .invoke_handler(tauri::generate_handler![auth_session_get, auth_session_set, load_meetings, save_meetings, secret_get, secret_set, start_audio_capture, stop_audio_capture, pause_audio_capture, read_audio, playback_path, write_audio, delete_audio, transcribe, open_billing_url, set_compact, send_integration])
+        .invoke_handler(tauri::generate_handler![auth_oauth_sign_in, auth_oauth_cancel, auth_session_get, auth_session_set, load_meetings, save_meetings, secret_get, secret_set, start_audio_capture, stop_audio_capture, pause_audio_capture, read_audio, playback_path, write_audio, delete_audio, transcribe, open_billing_url, set_compact, send_integration])
         .run(tauri::generate_context!()).expect("No se pudo iniciar Glu");
 }

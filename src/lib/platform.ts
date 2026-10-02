@@ -11,7 +11,9 @@ export function invoke<T>(command: string, args?: Record<string, unknown>): Prom
   if (!api) return Promise.reject(new Error('Esta función requiere la aplicación de escritorio.'));
   return api.core.invoke<T>(
     command,
-    command.startsWith('auth_session_') || command === 'set_compact'
+    command.startsWith('auth_session_') ||
+      command.startsWith('auth_oauth_') ||
+      command === 'set_compact'
       ? args
       : { ...args, account: getAccountId() },
   );

@@ -59,3 +59,26 @@ La ampliación incluye pruebas de citas exactas, recuperación del historial, pr
 - Inicio de la aplicación nativa y pantalla de acceso comprobados mediante accesibilidad de macOS (`tauri://localhost`).
 - El paquete incluye login y facturación, pero el acceso muestra configuración pendiente: no hay URL/clave pública Supabase configuradas en este workspace. No se validaron correos, Keychain con una sesión real ni cobros Stripe reales. Se requiere recompilar tras configurar `.env.local` y activar el backend.
 - El paquete tiene firma local; no cuenta con Developer ID ni notarización pública. Véase `MACOS.md`.
+
+
+## Corrección del acceso en Mac — 0.4.1 (2026-10-01)
+
+El paquete 0.4.0 mostraba «El acceso todavía no está disponible» porque fue compilado sin las variables públicas de Supabase. Se genera 0.4.1 con la configuración actual de `.env.local`, sin incorporar los secretos del servidor.
+
+La consulta de lectura a `/auth/v1/settings` con la clave pública devolvió HTTP 200, proveedor email habilitado y registro permitido. No se enviaron códigos ni se crearon cuentas en esta comprobación; la entrega del correo y una sesión real requieren la prueba del usuario.
+
+Validación final: `npm run build:mac` completó el frontend y el ejecutable nativo; `codesign --verify --deep --strict` y `hdiutil verify` pasaron. Se abrió `release/Glu.app` 0.4.1 y se comprobó en la ventana nativa el campo «Correo electrónico» y el botón «Continuar con correo», sin el mensaje de acceso no disponible. Se conserva el paquete anterior en `release/archive/Glu-0.4.0-unconfigured.app`.
+
+
+## Corrección de URL de Auth y facturación — 0.4.2
+
+El diagnóstico dentro de macOS identificó HTTP 404: `.env.local` contenía una URL con `/rest/v1/`. La comprobación anterior de settings reemplazaba el pathname y por ello no detectó este defecto. Se corrigió la URL local y se añadió normalización compartida de la URL base para Auth y Edge Functions; rutas ambiguas, credenciales y parámetros se rechazan. Los errores muestran identificadores estructurados sin mensajes sensibles del servidor.
+
+Validación: 24 pruebas unitarias/integración y 10 e2e de Auth/facturación aprobadas, build nativo 0.4.2 y firma ad hoc verificados. En la app macOS se solicitó un código con éxito y se comprobó la pantalla «Revisa tu correo» con el campo «Código de verificación». La recepción del correo y la introducción del código quedan a cargo del usuario.
+
+
+## Google OAuth — 0.5.0
+
+Se añadió Google en web y macOS con PKCE S256, estado por intento y retorno nativo en loopback `127.0.0.1:42813`. El listener exige ruta/estado válidos y se cierra por retorno, cancelación o timeout. Los verificadores temporales se separaron de la sesión en Keychain.
+
+Validación: 25 e2e aprobadas (incluyendo retorno web, retorno nativo simulado, aislamiento de Keychain y rechazo de callback no solicitado), 2 pruebas Rust aprobadas, `check:billing`, compilación web/nativa y verificación de firma/DMG completadas. Se abrió Glu 0.5.0 y se comprobó el botón «Continuar con Google». El acceso real queda pendiente de habilitar el proveedor y los Redirect URLs en Supabase y del consentimiento del usuario.

@@ -1,10 +1,12 @@
-# Glu para macOS — versión 0.4.0
+# Glu para macOS — versión 0.5.0
 
-Esta versión incluye el acceso Supabase por código de correo y Plan y facturación con Stripe. Comparte el frontend y las comprobaciones de servidor con la versión web.
+Esta versión incluye el acceso Supabase con Google (ver `GOOGLE_AUTH.md`) y por código de correo y Plan y facturación con Stripe. Comparte el frontend y las comprobaciones de servidor con la versión web.
+
+La entrega 0.5.0 incorpora la configuración pública de Supabase de `.env.local`, que faltaba en el paquete 0.4.0. Cambiar ese archivo exige volver a compilar e instalar la app.
 
 ## Uso
 
-Abre `release/Glu.app` o instala desde `release/Glu_0.4.0_aarch64.dmg`. Requiere un Mac con Apple Silicon y macOS 15 o posterior. La versión anterior se conserva en `release/archive/`.
+Abre `release/Glu.app` o instala desde `release/Glu_0.5.0_aarch64.dmg`. Requiere un Mac con Apple Silicon y macOS 15 o posterior. La versión anterior se conserva en `release/archive/`.
 
 El login debe estar configurado antes de compilar:
 
@@ -44,7 +46,7 @@ Comprueba la versión y el sello del paquete:
 ```sh
 /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' release/Glu.app/Contents/Info.plist
 codesign --verify --deep --strict release/Glu.app
-hdiutil verify release/Glu_0.4.0_aarch64.dmg
+hdiutil verify release/Glu_0.5.0_aarch64.dmg
 ```
 
 La compilación de esta entrega utiliza el toolchain existente en `/private/tmp/glu-cargo` y `/private/tmp/glu-rustup`, que no estaba en el PATH normal, y la caché de build nativo anterior. No dependas de esas carpetas temporales para futuras compilaciones; configura Rust en tu entorno habitual.

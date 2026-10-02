@@ -3,6 +3,7 @@ import { auth, authError } from '../services/auth';
 import { setAccountId } from '../services/account';
 import { useMeetingStore, flushMeetings } from '../store/useMeetingStore';
 import { AccountContext } from './AccountContext';
+import { finishWebGoogleSignIn } from '../services/google-auth';
 import { LoginScreen } from './LoginScreen';
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -35,6 +36,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     });
     void (async () => {
       try {
+        await finishWebGoogleSignIn();
         const session = await auth.getSession();
         if (session.error) throw session.error;
         if (!session.data.session) {

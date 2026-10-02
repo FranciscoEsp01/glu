@@ -1,4 +1,4 @@
-import { auth } from './auth';
+import { auth, supabaseUrl } from './auth';
 import { desktop, invoke } from '../lib/platform';
 export type { BillingStatus, PaidFeature, Plan } from '../../supabase/functions/_shared/plans';
 export { PLANS, billingNotice } from '../../supabase/functions/_shared/plans';
@@ -12,7 +12,7 @@ export async function billingRequest<T>(
   let response: Response;
   try {
     response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${endpoint}`,
+      `${supabaseUrl}/functions/v1/${endpoint}`,
       {
         method: 'POST',
         headers: {

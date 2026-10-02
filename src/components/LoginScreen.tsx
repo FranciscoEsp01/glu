@@ -1,8 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, Mail, ArrowLeft, ShieldCheck, AudioLines } from 'lucide-react';
+import { signInWithGoogle, cancelGoogleSignIn } from '../services/google-auth';
+import { desktop } from '../lib/platform';
 import { auth, authError } from '../services/auth';
 
 export function LoginScreen() {
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
@@ -14,8 +17,20 @@ export function LoginScreen() {
     const timer = window.setTimeout(() => setCooldown(cooldown - 1), 1000);
     return () => clearTimeout(timer);
   }, [cooldown]);
+  async function googleLogin() {
+    if (busy || googleBusy) return;
+    setGoogleBusy(true);
+    setError('');
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setError(error instanceof Error && !('status' in error) ? error.message : authError(error));
+    } finally {
+      setGoogleBusy(false);
+    }
+  }
   async function sendCode() {
-    if (!auth || busy || cooldown) return;
+    if (!auth || busy || googleBusy || cooldown) return;
     setBusy(true);
     setError('');
     try {
@@ -36,7 +51,7 @@ export function LoginScreen() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!sent) return sendCode();
-    if (!auth || busy) return;
+    if (!auth || busy || googleBusy) return;
     setBusy(true);
     setError('');
     try {
@@ -92,7 +107,7 @@ export function LoginScreen() {
           <p className="auth-description">
             {sent
               ? `Enviamos un código a ${email.trim()}. Ingrésalo para continuar.`
-              : 'Inicia sesión o crea tu cuenta con tu correo. Sin contraseñas que recordar.'}
+              : 'Inicia sesión o crea tu cuenta con Google o con un código por correo.'}
           </p>
           {!auth ? (
             <div className="auth-message" role="alert">
@@ -101,6 +116,29 @@ export function LoginScreen() {
             </div>
           ) : (
             <form onSubmit={submit}>
+              {!sent && (
+                <>
+                  <button
+                    type="button"
+                    className="primary auth-submit"
+                    disabled={busy || googleBusy}
+                    onClick={() => void googleLogin()}
+                  >
+                    {googleBusy ? 'Esperando a Google…' : 'Continuar con Google'}
+                  </button>
+                  {googleBusy && desktop() && (
+                    <div className="auth-secondary">
+                      <span>Completa el acceso en tu navegador.</span>
+                      <button type="button" onClick={() => void cancelGoogleSignIn()}>
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                  <p className="auth-description" style={{ textAlign: 'center', margin: '18px 0' }}>
+                    o usa tu correo
+                  </p>
+                </>
+              )}
               {sent ? (
                 <label>
                   Código de verificación
@@ -116,7 +154,7 @@ export function LoginScreen() {
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="Ingresa tu código"
-                    disabled={busy}
+                    disabled={busy || googleBusy}
                   />
                 </label>
               ) : (
@@ -132,7 +170,7 @@ export function LoginScreen() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="tu@empresa.com"
-                    disabled={busy}
+                    disabled={busy || googleBusy}
                   />
                 </label>
               )}
@@ -141,7 +179,7 @@ export function LoginScreen() {
                   {error}
                 </p>
               )}
-              <button className="primary auth-submit" disabled={busy} type="submit">
+              <button className="primary auth-submit" disabled={busy || googleBusy} type="submit">
                 {busy ? 'Un momento…' : sent ? 'Entrar a Glu' : 'Continuar con correo'}
                 {!busy && <ArrowRight size={17} />}
               </button>
@@ -149,7 +187,7 @@ export function LoginScreen() {
                 <div className="auth-secondary">
                   <button
                     type="button"
-                    disabled={busy}
+                    disabled={busy || googleBusy}
                     onClick={() => {
                       setSent(false);
                       setCode('');
