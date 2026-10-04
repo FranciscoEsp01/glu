@@ -36,6 +36,7 @@ export function runtime(): Runtime {
         .split(',')
         .map((value) => value.trim()),
       geminiKey: Deno.env.get('GEMINI_API_KEY') || '',
+      deepgramKey: Deno.env.get('DEEPGRAM_API_KEY') || '',
       geminiModel: Deno.env.get('GEMINI_MODEL') || 'gemini-2.5-flash',
     },
     fetch,

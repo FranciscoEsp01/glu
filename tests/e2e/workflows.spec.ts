@@ -15,7 +15,7 @@ async function importText(page: import('@playwright/test').Page) {
 }
 async function configure(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Configuración', exact: true }).first().click();
-  await page.getByLabel('Clave de Deepgram').fill('test-key-deepgram');
+
   await page.getByRole('button', { name: 'Guardar configuración' }).click();
 }
 test('Empty workspace, import, editing, persistent reload, actionable service failure', async ({
@@ -94,7 +94,7 @@ test('Microphone capture pauses the timer, saves actual media and recovers witho
   await page.getByTitle('Reanudar captura').click();
   await page.waitForTimeout(500);
   await page.getByTitle('Finalizar reunión').click();
-  await expect(page.getByRole('alert')).toContainText('Deepgram');
+  await expect(page.getByRole('alert')).toContainText('transcripción de Glu');
   await expect(page.locator('audio')).toHaveAttribute('src', /^blob:/);
   await page.reload();
   await expect(page.locator('audio')).toHaveAttribute('src', /^blob:/);
@@ -115,7 +115,7 @@ test('Denied microphone never produces a fake meeting', async ({ page }) => {
 test('Successful processing deletes audio only after saving the result when retention is disabled', async ({
   page,
 }) => {
-  await page.route('https://api.deepgram.com/**', (route) =>
+  await page.route('https://glu-test.supabase.co/functions/v1/transcribe**', (route) =>
     route.fulfill({
       json: {
         results: {
@@ -151,7 +151,7 @@ test('Successful processing deletes audio only after saving the result when rete
   ).toBe(false);
 });
 test('A metadata storage failure prevents discarding the original audio', async ({ page }) => {
-  await page.route('https://api.deepgram.com/**', (route) =>
+  await page.route('https://glu-test.supabase.co/functions/v1/transcribe**', (route) =>
     route.fulfill({
       json: {
         results: {

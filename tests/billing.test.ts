@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import Stripe from 'stripe';
 import { billingHandler, type Runtime } from '../supabase/functions/_shared/billing-core';
+import { transcriptionHandler } from '../supabase/functions/_shared/transcription';
 import { paidAIHandler } from '../supabase/functions/_shared/paid-ai';
 import { webhookHandler } from '../supabase/functions/_shared/webhook';
 import { effectivePlan } from '../supabase/functions/_shared/plans';
@@ -97,13 +98,19 @@ before(async () => {
       'utf8',
     ),
   );
+  await pg.exec(
+    await readFile(
+      new URL('../supabase/migrations/202610040001_consumption.sql', import.meta.url),
+      'utf8',
+    ),
+  );
 });
 after(async () => {
   await pg.close();
 });
 beforeEach(async () => {
   await pg.exec(
-    'truncate public.billing_accounts, public.billing_subscriptions, public.billing_usage, public.billing_events, public.billing_locks cascade',
+    'truncate public.service_requests, public.service_consumption, public.billing_accounts, public.billing_subscriptions, public.billing_usage, public.billing_events, public.billing_locks cascade',
   );
   subscriptions = [];
   checkoutCalls = [];
@@ -209,6 +216,7 @@ beforeEach(async () => {
       origins: ['https://glu.example'],
       geminiKey: 'server-secret',
       geminiModel: 'gemini-2.5-flash',
+      deepgramKey: 'server-deepgram',
     },
     fetch: async () => {
       providerCalls++;
@@ -454,4 +462,118 @@ test('Unknown prices, expired periods and unpaid statuses never grant paid acces
     ]),
     'free',
   );
+});
+
+test('Measured Gemini tokens settle the reservation once and are visible only to the owner', async () => {
+  await subscriber();
+  r.fetch = async (_url, init) => {
+    assert.equal((init?.headers as any)['x-goog-api-key'], 'server-secret');
+    return Response.json({
+      candidates: [],
+      usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30, totalTokenCount: 160 },
+    });
+  };
+  const req = request({ feature: 'summary', payload });
+  const id = crypto.randomUUID();
+  req.headers.set('x-request-id', id);
+  assert.equal((await paidAIHandler(r)(req)).status, 200);
+  const row = (await pg.query('select * from service_consumption')).rows[0] as any;
+  assert.equal(Number(row.tokens), 160);
+  assert.equal(
+    (await pg.query('select status,measurement from service_requests')).rows[0]?.status,
+    'succeeded',
+  );
+  await pg.query('select finish_service_request($1,$2,true,120,30,160,200)', [A, id]);
+  assert.equal(
+    Number((await pg.query('select tokens from service_consumption')).rows[0]?.tokens),
+    160,
+  );
+  await pg.exec(`set role authenticated; set request.jwt.claim.sub='${B}';`);
+  try {
+    assert.equal((await pg.query('select * from service_requests')).rows.length, 0);
+    await assert.rejects(pg.query('update service_consumption set tokens=0'));
+    await assert.rejects(pg.query('select finish_service_request($1,$2,true,0,0,0,200)', [A, id]));
+  } finally {
+    await pg.exec('reset role');
+  }
+});
+
+test('Provider failures keep a conservative charge and duplicate requests never call Gemini twice', async () => {
+  await subscriber();
+  providerCalls = 0;
+  r.fetch = async () => {
+    providerCalls++;
+    return new Response(null, { status: 500 });
+  };
+  const id = crypto.randomUUID();
+  const first = request({ feature: 'summary', payload });
+  first.headers.set('x-request-id', id);
+  assert.equal((await paidAIHandler(r)(first)).status, 502);
+  const retry = request({ feature: 'summary', payload });
+  retry.headers.set('x-request-id', id);
+  assert.equal((await paidAIHandler(r)(retry)).status, 409);
+  assert.equal(providerCalls, 1);
+  const row = (await pg.query('select * from service_requests')).rows[0] as any;
+  assert.equal(row.status, 'failed');
+  assert.equal(row.measurement, 'reserved');
+  assert.ok(row.reserved_tokens >= 8192);
+});
+
+test('Atomic reservations enforce token, audio, concurrency and burst limits', async () => {
+  const call = (id: string, tokens = 100, audio = 0) =>
+    pg.query('select reserve_service_request($1,$2,$3,100,1000,300,$4,$5) as result', [
+      A,
+      id,
+      audio ? 'transcription' : 'summary',
+      tokens,
+      audio,
+    ]);
+  assert.equal((await call(crypto.randomUUID(), 1001)).rows[0]?.result, 'quota');
+  assert.equal((await call(crypto.randomUUID(), 0, 300)).rows[0]?.result, 'ok');
+  assert.equal((await call(crypto.randomUUID(), 0, 1)).rows[0]?.result, 'quota');
+  assert.equal((await call(crypto.randomUUID())).rows[0]?.result, 'ok');
+  assert.equal((await call(crypto.randomUUID())).rows[0]?.result, 'concurrency');
+  await pg.exec("update service_requests set status='succeeded'");
+  for (let i = 0; i < 8; i++) {
+    assert.equal((await call(crypto.randomUUID(), 1)).rows[0]?.result, 'ok');
+    await pg.exec("update service_requests set status='succeeded'");
+  }
+  assert.equal((await call(crypto.randomUUID(), 1)).rows[0]?.result, 'rate');
+});
+
+test('Managed transcription measures fixed PCM bytes, applies the plan and never accepts a client credential', async () => {
+  const audio = new Uint8Array(64000);
+  const req = () =>
+    new Request('https://edge.example/transcribe?language=es', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer token-a',
+        Origin: 'https://glu.example',
+        'Content-Type': 'application/octet-stream',
+      },
+      body: audio,
+    });
+  assert.equal((await transcriptionHandler(r)(req())).status, 402);
+  assert.equal(providerCalls, 0);
+  await pg.query('delete from billing_accounts where user_id=$1', [A]);
+  await subscriber();
+  r.fetch = async (url, init) => {
+    providerCalls++;
+    assert.ok(String(url).includes('encoding=linear16'));
+    assert.equal((init?.headers as any).Authorization, 'Token server-deepgram');
+    return Response.json({ results: { utterances: [] } });
+  };
+  assert.equal((await transcriptionHandler(r)(req())).status, 200);
+  assert.equal(
+    (await pg.query('select audio_seconds from service_consumption')).rows[0]?.audio_seconds,
+    2,
+  );
+  assert.equal((await pg.query('select used from billing_usage')).rows.length, 0);
+  const malformed = new Request('https://edge.example/transcribe', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer token-a', 'Content-Type': 'audio/webm' },
+    body: audio,
+  });
+  assert.equal((await transcriptionHandler(r)(malformed)).status, 415);
+  assert.equal(providerCalls, 1);
 });

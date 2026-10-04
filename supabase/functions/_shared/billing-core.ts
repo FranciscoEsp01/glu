@@ -29,6 +29,7 @@ export interface Runtime {
     origins: string[];
     geminiKey: string;
     geminiModel: string;
+    deepgramKey?: string;
   };
   fetch: typeof fetch;
 }
@@ -43,13 +44,13 @@ export function cors(req: Request, runtime: Runtime) {
     throw new HttpError(403, 'Origen no permitido.');
   return {
     ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-request-id',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     Vary: 'Origin',
     'Cache-Control': 'no-store',
   };
 }
-export async function readBody(req: Request, limit = 8192) {
+export async function readBytes(req: Request, limit = 8192) {
   if (!req.body) throw new HttpError(400, 'Falta el contenido de la solicitud.');
   const reader = req.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -70,7 +71,10 @@ export async function readBody(req: Request, limit = 8192) {
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(bytes);
+  return bytes;
+}
+export async function readBody(req: Request, limit = 8192) {
+  return new TextDecoder().decode(await readBytes(req, limit));
 }
 export async function readJson(req: Request, limit = 8192): Promise<Record<string, unknown>> {
   try {
@@ -197,11 +201,25 @@ export async function status(r: Runtime, userId: string) {
       .eq('month', month)
       .maybeSingle(),
   );
+  const consumption = checked(
+    await r.db
+      .from('service_consumption')
+      .select('tokens,audio_seconds')
+      .eq('user_id', userId)
+      .eq('month', month)
+      .maybeSingle(),
+  );
   const now = new Date();
   const plan = effectivePlan(subscriptions);
   return {
     plan,
     subscriptions,
+    consumption: {
+      tokens: Number(consumption.data?.tokens || 0),
+      tokenLimit: PLANS[plan].tokens,
+      audioSeconds: consumption.data?.audio_seconds || 0,
+      audioLimit: PLANS[plan].audioSeconds,
+    },
     used: data?.used || 0,
     limit: PLANS[plan].aiRequests,
     resetsAt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString(),
@@ -296,7 +314,7 @@ export async function authorizeFeature(
           ? 'Necesitas el plan Plus activo para preguntar a tus reuniones.'
           : 'Necesitas un plan Pro o Plus activo para generar resúmenes.',
       );
-    if (!consume) {
+    if (!consume && feature !== 'transcription') {
       const month = new Date().toISOString().slice(0, 7) + '-01';
       const usage = checked(
         await r.db
@@ -362,7 +380,11 @@ export function billingHandler(r: Runtime) {
           result = await cancel(r, user.id, true);
           break;
         case 'authorize':
-          if (body.feature !== 'summary' && body.feature !== 'knowledge')
+          if (
+            body.feature !== 'summary' &&
+            body.feature !== 'knowledge' &&
+            body.feature !== 'transcription'
+          )
             throw new HttpError(400, 'Función inválida.');
           await authorizeFeature(r, user.id, body.feature);
           result = { allowed: true };

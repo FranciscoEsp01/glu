@@ -144,17 +144,6 @@ async fn response(response: reqwest::Response) -> Result<Value, String> {
     response.json().await.map_err(|e| e.to_string())
 }
 #[tauri::command]
-async fn transcribe(state: State<'_, AppState>, account: String, id: String, language: String) -> Result<Value, String> {
-    if !["es", "en"].contains(&language.as_str()) { return Err("Idioma inválido".into()); }
-    let file = tokio::fs::File::open(audio_path(&state, &account, &id)?).await.map_err(|e| e.to_string())?;
-    let length = file.metadata().await.map_err(|e| e.to_string())?.len();
-    let body = reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
-    let request = state.http.post("https://api.deepgram.com/v1/listen")
-        .query(&[("model", "nova-3"), ("language", &language), ("smart_format", "true"), ("diarize", "true"), ("utterances", "true")])
-        .header("Authorization", format!("Token {}", secret_get(account, "deepgram".into())?)).header("Content-Type", "application/octet-stream").header("Content-Length", length).body(body).send().await.map_err(|_| "No se pudo conectar a Deepgram. Revisa tu conexión.")?;
-    response(request).await
-}
-#[tauri::command]
 async fn send_integration(state: State<'_, AppState>, account: String, provider: String, body: Value) -> Result<Value, String> {
     let url = match provider.as_str() { "slack" => "https://slack.com/api/chat.postMessage", "notion" => "https://api.notion.com/v1/pages", _ => return Err("Integración no admitida".into()) };
     if body.to_string().len() > 450_000 { return Err("El contenido es demasiado grande para enviarlo.".into()); }
@@ -221,6 +210,6 @@ fn main() {
         .on_window_event(|window, event| { if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             if window.state::<AppState>().child.lock().map(|c| c.is_some()).unwrap_or(false) { api.prevent_close(); let _ = window.emit("glu-close-blocked", ()); }
         } })
-        .invoke_handler(tauri::generate_handler![auth_oauth_sign_in, auth_oauth_cancel, auth_session_get, auth_session_set, load_meetings, save_meetings, secret_get, secret_set, start_audio_capture, stop_audio_capture, pause_audio_capture, read_audio, playback_path, write_audio, delete_audio, transcribe, open_billing_url, set_compact, send_integration])
+        .invoke_handler(tauri::generate_handler![auth_oauth_sign_in, auth_oauth_cancel, auth_session_get, auth_session_set, load_meetings, save_meetings, secret_get, secret_set, start_audio_capture, stop_audio_capture, pause_audio_capture, read_audio, playback_path, write_audio, delete_audio, open_billing_url, set_compact, send_integration])
         .run(tauri::generate_context!()).expect("No se pudo iniciar Glu");
 }

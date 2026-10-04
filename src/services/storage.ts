@@ -96,16 +96,20 @@ export const storage = {
       notionToken: '',
     };
     if (desktop()) {
-      settings.deepgramApiKey = await invoke('secret_get', { name: 'deepgram' });
       settings.slackToken = await invoke('secret_get', { name: 'slack' });
       settings.notionToken = await invoke('secret_get', { name: 'notion' });
     }
     return settings;
   },
   async saveSettings(settings: AISettings) {
-    const { geminiApiKey, deepgramApiKey, slackToken, notionToken, ...publicSettings } = settings;
+    const {
+      geminiApiKey: _geminiApiKey,
+      deepgramApiKey: _deepgramApiKey,
+      slackToken,
+      notionToken,
+      ...publicSettings
+    } = settings;
     if (desktop()) {
-      await invoke('secret_set', { name: 'deepgram', value: deepgramApiKey });
       await invoke('secret_set', { name: 'slack', value: slackToken || '' });
       await invoke('secret_set', { name: 'notion', value: notionToken || '' });
     }

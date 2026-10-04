@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useMeetingStore } from '../store/useMeetingStore';
-import { desktop } from '../lib/platform';
 export function SettingsModal() {
   const { settings, updateSettings, isSettingsOpen, toggleSettings } = useMeetingStore();
   const [draft, setDraft] = useState(settings);
@@ -34,24 +33,10 @@ export function SettingsModal() {
             ✕
           </button>
         </header>
-        <p className="muted">
-          Conecta tus proveedores para transformar conversaciones en notas.{' '}
-          {desktop()
-            ? 'Las claves se guardan en el llavero del sistema.'
-            : 'En navegador las claves duran solo esta sesión; deberás introducirlas al recargar.'}
-        </p>
-        <label>
-          Clave de Deepgram · transcripción
-          <input
-            autoComplete="off"
-            type="password"
-            value={draft.deepgramApiKey}
-            onChange={(e) => setDraft({ ...draft, deepgramApiKey: e.target.value })}
-          />
-        </label>
         <p className="notice">
-          Los resúmenes se incluyen en Pro y Plus. Las preguntas entre reuniones requieren Plus. No
-          necesitas configurar una clave de Gemini.
+          Glu incluye transcripción y resúmenes en Pro y Plus, y preguntas entre reuniones en Plus.
+          No necesitas claves de Deepgram ni Gemini. Los minutos y solicitudes se descuentan de tu
+          plan.
         </p>
         <div className="form-row">
           <label>

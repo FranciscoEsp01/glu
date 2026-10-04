@@ -68,3 +68,14 @@ test('Billing outage does not claim a paid plan or hide the local history', asyn
   await page.getByLabel('Cerrar facturación').click();
   await expect(page.getByLabel('Transcripción para importar')).toBeVisible();
 });
+
+test('Account consumption displays measured tokens and transcription minutes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Plan y facturación/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Plan y facturación' })).toContainText(
+    '2 de 1500 minutos de transcripción',
+  );
+  await expect(page.getByRole('dialog', { name: 'Plan y facturación' })).toContainText(
+    'tokens de IA este mes',
+  );
+});

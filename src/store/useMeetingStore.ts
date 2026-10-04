@@ -293,9 +293,8 @@ export const useMeetingStore = create<MeetingStoreState>((set, get) => ({
       await billingRequest('billing', { action: 'authorize', feature: 'summary' });
       const settings = { ...get().settings };
       if (!meeting.rawTranscript.length && meeting.hasAudio) {
-        const blob = desktop() ? undefined : await storage.getAudio(id);
-        if (!desktop() && !blob)
-          throw new Error('El audio no está disponible. Puedes pegar una transcripción.');
+        const blob = await storage.getAudio(id);
+        if (!blob) throw new Error('El audio no está disponible. Puedes pegar una transcripción.');
         const rawTranscript = await AIService.transcribe(id, blob, settings);
         get().updateMeeting(id, {
           rawTranscript,

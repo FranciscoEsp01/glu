@@ -1,7 +1,7 @@
 {
   "name": "glu-meeting-ai-app",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "format": "prettier --write src tests *.json *.ts *.md src-tauri/*.json src-tauri/capabilities/*.json",
     "check:billing": "tsc -p supabase/tsconfig.json",
-    "build:mac": "tauri build --bundles app,dmg"
+    "build:mac": "tauri build --bundles app,dmg",
+    "check:backend-env": "node scripts/check-backend-env.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

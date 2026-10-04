@@ -7,6 +7,7 @@ import {
   responseError,
   type Runtime,
 } from './billing-core.ts';
+import { reserve, finish, usageMetadata, requestId } from './consumption.ts';
 import { buildPrompt } from './ai-prompts.ts';
 export function paidAIHandler(r: Runtime) {
   return async (req: Request) => {
@@ -23,29 +24,49 @@ export function paidAIHandler(r: Runtime) {
       if (!r.config.geminiKey)
         throw new HttpError(503, 'El procesamiento de IA aún no está disponible.');
       // This is the enforcement boundary. Editing client state cannot bypass this check.
-      await authorizeFeature(r, user.id, body.feature, true);
-      const response = await r.fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(r.config.geminiModel)}:generateContent`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': r.config.geminiKey },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.1,
-              maxOutputTokens: 8192,
-            },
-          }),
-          signal: AbortSignal.timeout(90000),
-        },
+      const plan = await authorizeFeature(r, user.id, body.feature);
+      const id = requestId(req.headers.get('x-request-id'));
+      await reserve(
+        r,
+        user.id,
+        id,
+        body.feature,
+        plan,
+        new TextEncoder().encode(prompt).length + 8192,
       );
-      if (!response.ok)
-        throw new HttpError(
-          502,
-          'No se pudo generar la respuesta. Tus datos locales se conservan.',
+      let providerStatus: number | undefined;
+      let settled = false;
+      try {
+        const response = await r.fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(r.config.geminiModel)}:generateContent`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': r.config.geminiKey },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.1,
+                maxOutputTokens: 8192,
+              },
+            }),
+            signal: AbortSignal.timeout(90000),
+          },
         );
-      return Response.json(await response.json(), { headers });
+        providerStatus = response.status;
+        if (!response.ok)
+          throw new HttpError(
+            502,
+            'No se pudo generar la respuesta. Tus datos locales se conservan.',
+          );
+        const data = await response.json();
+        settled = true;
+        await finish(r, user.id, id, true, usageMetadata(data), providerStatus);
+        return Response.json(data, { headers });
+      } catch (error) {
+        if (!settled) await finish(r, user.id, id, false, undefined, providerStatus);
+        throw error;
+      }
     } catch (error) {
       return responseError(error, headers);
     }

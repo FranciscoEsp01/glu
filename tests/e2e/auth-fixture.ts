@@ -24,6 +24,12 @@ export function session(id = accountId, email = 'ana@example.com') {
 export async function mockAuth(page: Page, signedIn = false) {
   const initial = session();
   await mockBilling(page);
+  await page.route('https://glu-test.supabase.co/functions/v1/transcribe**', (route) =>
+    route.fulfill({
+      status: 503,
+      json: { error: 'La transcripción de Glu aún no está configurada. El audio se conserva.' },
+    }),
+  );
   await page.route('https://glu-test.supabase.co/functions/v1/paid-ai', (route) =>
     route.fulfill({ status: 503, json: { error: 'El servicio de IA no está disponible.' } }),
   );

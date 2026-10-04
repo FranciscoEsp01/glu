@@ -18,10 +18,10 @@ El código está integrado, pero **no cobra ni opera contra una cuenta Stripe re
 | Plan | Incluye | Cuota de IA |
 |---|---|---|
 | Gratis | Grabación, notas, historial local, importación, exportaciones y conexiones locales existentes | Sin IA gestionada |
-| Pro | Gratis + resúmenes con IA | 100 solicitudes al mes |
+| Pro | Gratis + transcripción y resúmenes con IA | 100 solicitudes al mes |
 | Plus | Pro + preguntas sobre el historial | 500 solicitudes al mes en total |
 
-La transcripción de audio sigue utilizando la clave **personal de Deepgram**. No está incluida en el precio del plan ni se factura desde Glu. La IA de resúmenes y preguntas usa una clave Gemini del servidor y ya no llama directamente desde el cliente. Los campos/secretos Gemini históricos se conservan por compatibilidad, pero no habilitan acceso premium.
+La transcripción usa la clave Deepgram de Glu en el servidor. Pro incluye 300 minutos y 2 millones de tokens al mes; Plus incluye 1500 minutos y 10 millones de tokens. Resúmenes y preguntas comparten las cuotas de solicitudes existentes. Consulta `BACKEND_CONSUMO.md` para el registro y sus límites.
 
 Las cuotas son por mes calendario UTC, independientemente del día de renovación de la suscripción. Cada solicitud autorizada que se envía al proveedor consume una unidad, incluso si falla o devuelve una respuesta inválida. Un reintento es una solicitud nueva. No se cobran excedentes automáticamente. Se limita el cuerpo a 256 KB y la salida a 8192 tokens. Los valores iniciales se definen en `supabase/functions/_shared/plans.ts`; si se amplían por encima de 500, actualiza también el límite de seguridad de la función SQL `reserve_ai_request` mediante una nueva migración.
 
@@ -58,6 +58,7 @@ Copia `supabase/.env.example` a `supabase/.env.local` y completa:
 - `STRIPE_PORTAL_CONFIGURATION_ID`.
 - `BILLING_RETURN_URL`: URL fija y propia, por ejemplo `https://tu-app.com/billing-return.html`. El archivo de retorno está en `public/` y funciona para web y escritorio: invita a volver a Glu sin afirmar que el pago esté confirmado.
 - `BILLING_ALLOWED_ORIGINS`: orígenes exactos separados por comas. Incluye tu web y los de escritorio que distribuyas (`tauri://localhost` y/o `http://tauri.localhost`). Sin comodines.
+- `DEEPGRAM_API_KEY`: credencial de Glu para transcripción.
 - `GEMINI_API_KEY` y opcionalmente `GEMINI_MODEL`.
 
 `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` son secretos del entorno alojado. **Nunca los secretos de Stripe, Gemini o service_role en variables VITE_ ni en el cliente.**
@@ -67,6 +68,7 @@ supabase secrets set --env-file supabase/.env.local
 supabase functions deploy billing
 supabase functions deploy stripe-webhook
 supabase functions deploy paid-ai
+supabase functions deploy transcribe
 ```
 
 Las funciones tienen `verify_jwt = false` para admitir el webhook y el esquema actual de claves Supabase. Esto **no significa acceso anónimo a billing/paid-ai**: esos handlers exigen Bearer token y lo verifican con `auth.getUser`. Solo stripe-webhook usa la firma de Stripe en vez del JWT.

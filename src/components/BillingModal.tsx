@@ -103,6 +103,18 @@ export function BillingModal() {
                   ? `${status.used} de ${status.limit} solicitudes de IA este mes`
                   : 'Notas, grabación e historial local'}
               </p>
+              {status.consumption && (
+                <>
+                  <p>
+                    {Math.ceil(status.consumption.audioSeconds / 60)} de{' '}
+                    {status.consumption.audioLimit / 60} minutos de transcripción este mes
+                  </p>
+                  <p>
+                    {status.consumption.tokens.toLocaleString('es-CL')} de{' '}
+                    {status.consumption.tokenLimit.toLocaleString('es-CL')} tokens de IA este mes
+                  </p>
+                </>
+              )}
               {end && (
                 <p>
                   {current?.cancel_at_period_end ? 'Finaliza' : 'Fin del período actual'}: {end}
@@ -156,7 +168,7 @@ export function BillingModal() {
                   {plan !== 'free' && (
                     <>
                       <li>
-                        <Check size={14} /> Resúmenes con IA
+                        <Check size={14} /> Transcripción y resúmenes con IA
                       </li>
                       <li>
                         <Check size={14} /> {PLANS[plan].aiRequests} solicitudes / mes

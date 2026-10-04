@@ -11,19 +11,17 @@ export async function billingRequest<T>(
   if (error || !data.session) throw new Error('Tu sesión ha finalizado. Vuelve a iniciar sesión.');
   let response: Response;
   try {
-    response = await fetch(
-      `${supabaseUrl}/functions/v1/${endpoint}`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${data.session.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(endpoint === 'paid-ai' ? 110000 : 30000),
+    response = await fetch(`${supabaseUrl}/functions/v1/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${data.session.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+        'x-request-id': crypto.randomUUID(),
       },
-    );
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(endpoint === 'paid-ai' ? 110000 : 30000),
+    });
   } catch {
     throw new Error(
       'No pudimos conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.',

@@ -5,8 +5,9 @@ import {
   KeyDecision,
   AISettings,
 } from '../types/meeting';
+import { managedTranscription } from './managed-transcription';
 import { billingRequest } from './billing';
-import { desktop, invoke, escapeHtml } from '../lib/platform';
+import { escapeHtml } from '../lib/platform';
 export interface GenerateSummaryPayload {
   title: string;
   templateType: TemplateType;
@@ -86,47 +87,15 @@ export function parseTranscript(data: any): TranscriptSegment[] {
     ? [{ id: 'segment-0', speaker: 'Hablante', timestamp: 0, text }]
     : [];
 }
-async function checkedJson(response: Response) {
-  if (!response.ok)
-    throw new Error(
-      response.status === 401 || response.status === 403
-        ? 'Clave de API no válida o sin permisos. Revisa Configuración.'
-        : `El proveedor respondió con error ${response.status}. Reintenta más tarde.`,
-    );
-  return response.json();
-}
 export class AIService {
   static async transcribe(
     id: string,
     blob: Blob | undefined,
     settings: AISettings,
   ): Promise<TranscriptSegment[]> {
-    if (!settings.deepgramApiKey)
-      throw new Error(
-        'Configura tu clave de Deepgram para transcribir. El audio quedó guardado para reintentar.',
-      );
-    const data = desktop()
-      ? await invoke('transcribe', { id, language: settings.preferredLanguage })
-      : await checkedJson(
-          await fetch(
-            `https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&diarize=true&utterances=true&language=${settings.preferredLanguage}`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Token ${settings.deepgramApiKey}`,
-                'Content-Type': blob?.type || 'application/octet-stream',
-              },
-              body: blob,
-              signal: AbortSignal.timeout(180000),
-            },
-          ),
-        );
-    const transcript = parseTranscript(data);
-    if (!transcript.length)
-      throw new Error(
-        'No se detectó voz. Puedes reproducir el audio, añadir una transcripción o reintentar.',
-      );
-    return transcript;
+    if (!blob) throw new Error('El audio no está disponible. Puedes pegar una transcripción.');
+    void id;
+    return managedTranscription(blob, settings.preferredLanguage);
   }
   static async processMeeting(
     payload: GenerateSummaryPayload,

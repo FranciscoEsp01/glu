@@ -1,9 +1,27 @@
 export type Plan = 'free' | 'pro' | 'plus';
-export type PaidFeature = 'summary' | 'knowledge';
+export type PaidFeature = 'summary' | 'knowledge' | 'transcription';
 export const PLANS = {
-  free: { name: 'Gratis', aiRequests: 0, features: [] as PaidFeature[] },
-  pro: { name: 'Pro', aiRequests: 100, features: ['summary'] as PaidFeature[] },
-  plus: { name: 'Plus', aiRequests: 500, features: ['summary', 'knowledge'] as PaidFeature[] },
+  free: {
+    name: 'Gratis',
+    aiRequests: 0,
+    tokens: 0,
+    audioSeconds: 0,
+    features: [] as PaidFeature[],
+  },
+  pro: {
+    name: 'Pro',
+    aiRequests: 100,
+    tokens: 2000000,
+    audioSeconds: 18000,
+    features: ['summary', 'transcription'] as PaidFeature[],
+  },
+  plus: {
+    name: 'Plus',
+    aiRequests: 500,
+    tokens: 10000000,
+    audioSeconds: 90000,
+    features: ['summary', 'knowledge', 'transcription'] as PaidFeature[],
+  },
 };
 export interface SubscriptionSnapshot {
   id: string;
@@ -46,5 +64,6 @@ export interface BillingStatus {
   limit: number;
   resetsAt: string;
   canManage: boolean;
+  consumption?: { tokens: number; tokenLimit: number; audioSeconds: number; audioLimit: number };
   prices: { plan: 'pro' | 'plus'; amount: number; currency: string; interval: string }[];
 }

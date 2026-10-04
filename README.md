@@ -18,9 +18,9 @@ npm run tauri build -- --bundles app
 
 La captura nativa requiere **macOS 15 o posterior** y permisos de micrófono y grabación de pantalla/audio. Se compila un auxiliar Swift usando ScreenCaptureKit; no se guardan imágenes de la pantalla. El build admite Apple Silicon e Intel según el target de compilación. La compilación verificada en este equipo es Apple Silicon. Windows no tiene todavía motor de captura nativo; la versión web permite usar micrófono y, cuando el navegador lo permita, compartir audio de una pestaña.
 
-## Versión macOS 0.5.0
+## Versión macOS 0.6.0
 
-La app actualizada está en `release/Glu.app` y el instalador Apple Silicon en `release/Glu_0.5.0_aarch64.dmg`. Incluyen login y facturación. Consulta [macOS](docs/MACOS.md) para configurar los servicios, recompilar y conocer el alcance de la firma local. La app anterior está respaldada en `release/archive/`.
+La app actualizada está en `release/Glu-0.6.0.app` y el instalador Apple Silicon en `release/Glu_0.6.0_aarch64.dmg`. Incluyen login, facturación y consumo gestionado por el backend. Consulta [macOS](docs/MACOS.md) para configurar los servicios, recompilar y conocer el alcance de la firma local.
 
 ## Acceso de usuarios
 
@@ -28,17 +28,17 @@ El acceso usa Supabase Auth con código por correo. Configura `.env.local` y la 
 
 ## Suscripciones
 
-Glu incluye planes Gratis, Pro y Plus con Stripe Checkout, portal de pagos, cancelación al final del período y manejo de pagos fallidos. Los resúmenes (Pro/Plus) y preguntas (Plus) pasan por Edge Functions con validación del plan y cuotas en servidor. Antes de activarlo, configura y despliega la base de datos y las funciones siguiendo [Suscripciones](docs/SUSCRIPCIONES.md). No se realizan cobros hasta configurar Stripe. La transcripción de audio sigue usando tu clave personal de Deepgram.
+Glu incluye planes Gratis, Pro y Plus con Stripe Checkout, portal de pagos, cancelación al final del período y manejo de pagos fallidos. Los resúmenes (Pro/Plus) y preguntas (Plus) pasan por Edge Functions con validación del plan y cuotas en servidor. Antes de activarlo, configura y despliega la base de datos y las funciones siguiendo [Suscripciones](docs/SUSCRIPCIONES.md). No se realizan cobros hasta configurar Stripe. Transcripción, resúmenes y preguntas usan credenciales de Glu en el backend, con cuotas de minutos, solicitudes y tokens. Consulta [Backend y consumo](docs/BACKEND_CONSUMO.md).
 
 ## Primer uso
 
-1. Inicia sesión con tu correo y el código recibido. Abre Configuración e introduce tu clave de Deepgram para transcribir audio. Para generar resúmenes, activa Pro o Plus desde Plan y facturación; Gemini se configura en el servidor.
+1. Inicia sesión con tu correo y el código recibido. Activa Pro o Plus para transcribir con las credenciales de Glu. Para generar resúmenes, activa Pro o Plus desde Plan y facturación; Gemini se configura en el servidor.
 2. Elige micrófono o micrófono + sistema/pestaña, idioma y conservación de audio.
 3. Crea una reunión, informa a sus participantes y concede los permisos del sistema.
 4. Toma apuntes desde la cápsula. Pausar detiene ambas fuentes; finalizar guarda la reunión antes de llamar a los proveedores.
 5. Revisa el resumen, marca tareas, edita las notas, copia el contenido o descarga Markdown.
 
-También puedes pegar una transcripción o importar audio (hasta 250 MB) sin claves. La generación de resúmenes requiere un plan Pro o Plus activo y el backend configurado; la transcripción de audio requiere Deepgram. En navegador, la captura dual exige seleccionar una fuente con audio compartido. Si no está disponible, Glu muestra un error y libera los dispositivos.
+También puedes pegar una transcripción o importar audio (para transcribir, hasta 100 MB y dos horas) sin claves. La generación de resúmenes requiere un plan Pro o Plus activo y el backend configurado; la transcripción de audio requiere Deepgram. En navegador, la captura dual exige seleccionar una fuente con audio compartido. Si no está disponible, Glu muestra un error y libera los dispositivos.
 
 ## Funciones implementadas
 
@@ -57,7 +57,7 @@ También puedes pegar una transcripción o importar audio (hasta 250 MB) sin cla
 
 ## Datos y privacidad
 
-En escritorio, las claves personales de Deepgram y las integraciones se guardan en Keychain y sus peticiones se realizan desde Rust. Los resúmenes y las preguntas usan Gemini desde el servidor, con validación de suscripción. En navegador solo permanecen en memoria durante la sesión. No se incluyen secretos en el repositorio.
+En escritorio, las claves personales de integraciones se guardan en Keychain y sus peticiones se realizan desde Rust. La transcripción usa la clave de Glu desde el backend. Los resúmenes y las preguntas usan Gemini desde el servidor, con validación de suscripción. En navegador solo permanecen en memoria durante la sesión. No se incluyen secretos en el repositorio.
 
 El audio se envía a Deepgram y el texto a Google Gemini cuando procesas una reunión. Sus políticas y la configuración de tu cuenta aplican; Glu no afirma que los proveedores tengan retención cero. El historial local no está cifrado por esta versión; la protección del disco depende del sistema operativo.
 

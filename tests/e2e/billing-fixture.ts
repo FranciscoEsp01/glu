@@ -8,6 +8,12 @@ export function billingState(
   return {
     plan: paid ? plan : 'free',
     used: 0,
+    consumption: {
+      tokens: 1200,
+      tokenLimit: paid ? (plan === 'plus' ? 10000000 : 2000000) : 0,
+      audioSeconds: 120,
+      audioLimit: paid ? (plan === 'plus' ? 90000 : 18000) : 0,
+    },
     limit: paid ? (plan === 'plus' ? 500 : 100) : 0,
     canManage: plan !== 'free',
     resetsAt: new Date(Date.now() + 86400000).toISOString(),

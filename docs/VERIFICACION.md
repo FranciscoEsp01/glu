@@ -82,3 +82,12 @@ Validación: 24 pruebas unitarias/integración y 10 e2e de Auth/facturación apr
 Se añadió Google en web y macOS con PKCE S256, estado por intento y retorno nativo en loopback `127.0.0.1:42813`. El listener exige ruta/estado válidos y se cierra por retorno, cancelación o timeout. Los verificadores temporales se separaron de la sesión en Keychain.
 
 Validación: 25 e2e aprobadas (incluyendo retorno web, retorno nativo simulado, aislamiento de Keychain y rechazo de callback no solicitado), 2 pruebas Rust aprobadas, `check:billing`, compilación web/nativa y verificación de firma/DMG completadas. Se abrió Glu 0.5.0 y se comprobó el botón «Continuar con Google». El acceso real queda pendiente de habilitar el proveedor y los Redirect URLs en Supabase y del consentimiento del usuario.
+
+
+## Backend administrado y consumo — 0.6.0 (2026-10-04)
+
+Se añadió transcripción administrada por Glu con PCM medido en servidor, ledger por solicitud y cuotas atómicas de tokens/audio/solicitudes, controles de concurrencia y frecuencia, y métricas en Plan y facturación. Gemini liquida reservas usando usageMetadata; llamadas fallidas o inciertas conservan la reserva. Se retiró el comando nativo de transcripción directa y el campo de clave Deepgram del usuario.
+
+Validación: 28 pruebas unitarias/integración aprobadas con PostgreSQL real, comprobación TypeScript del backend y compilación web/nativa. Los casos de interfaz existentes de login pasaron, y los de grabación, conservación de audio y facturación se validaron tras actualizar los mocks a la transcripción administrada; el nuevo caso de consumo pasó por separado. Se generó y verificó Glu 0.6.0 para Apple Silicon. No se realizaron llamadas reales a los proveedores ni cobros en las pruebas.
+
+Despliegue remoto pendiente: no hay CLI Supabase autenticada en el entorno; `check:backend-env` detectó pendientes STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_PRO, STRIPE_PRICE_PLUS, STRIPE_PORTAL_CONFIGURATION_ID y DEEPGRAM_API_KEY. Se documentan migraciones, publicación y verificación en BACKEND_CONSUMO.md.
