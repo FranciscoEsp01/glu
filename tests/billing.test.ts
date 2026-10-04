@@ -151,12 +151,12 @@ beforeEach(async () => {
     webhooks: sdk.webhooks,
     customers: { create: async () => ({ id: 'cus_a' }) },
     prices: {
-      retrieve: async () => ({
+      retrieve: async (id: string) => ({
         active: true,
         type: 'recurring',
         recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' },
         billing_scheme: 'per_unit',
-        unit_amount: 1200,
+        unit_amount: id === 'price_pro' ? 1500 : 2500,
         currency: 'usd',
       }),
     },
@@ -303,6 +303,19 @@ test('Checkout uses server prices and authenticated customer, reuses open sessio
     400,
   );
 });
+test('Checkout rejects prices that differ from the published monthly USD plans', async () => {
+  const retrieve = r.stripe.prices.retrieve.bind(r.stripe.prices);
+  for (const change of [{ unit_amount: 1200 }, { currency: 'eur' }]) {
+    r.stripe.prices.retrieve = (async (...args: any[]) => ({
+      ...(await (retrieve as any)(...args)),
+      ...change,
+    })) as any;
+    const response = await billingHandler(r)(request({ action: 'checkout', plan: 'pro' }));
+    assert.equal(response.status, 503);
+    assert.equal(checkoutCalls.length, 0);
+  }
+});
+
 test('An existing delinquent subscription blocks another checkout', async () => {
   await subscriber(A, 'past_due');
   assert.equal(

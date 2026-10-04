@@ -180,7 +180,8 @@ export async function catalog(r: Runtime) {
         price.recurring?.interval !== 'month' ||
         price.recurring.interval_count !== 1 ||
         price.billing_scheme !== 'per_unit' ||
-        price.unit_amount === null ||
+        price.unit_amount !== PLANS[plan].monthlyPrice.amount ||
+        price.currency !== PLANS[plan].monthlyPrice.currency ||
         price.recurring.usage_type !== 'licensed'
       )
         throw new HttpError(503, 'Los planes no están disponibles todavía.');

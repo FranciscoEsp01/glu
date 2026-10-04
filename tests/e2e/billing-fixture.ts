@@ -30,8 +30,8 @@ export function billingState(
             },
           ],
     prices: [
-      { plan: 'pro', amount: 1200, currency: 'usd', interval: 'month' },
-      { plan: 'plus', amount: 2400, currency: 'usd', interval: 'month' },
+      { plan: 'pro', amount: 1500, currency: 'usd', interval: 'month' },
+      { plan: 'plus', amount: 2500, currency: 'usd', interval: 'month' },
     ],
   };
 }

@@ -9,6 +9,8 @@ test('Free user sees server prices and can prepare a Stripe checkout without gra
   await page.goto('/');
   await page.getByRole('button', { name: /Plan y facturación/ }).click();
   await expect(page.getByText('Plan actual: Gratis')).toBeVisible();
+  await expect(page.locator('.billing-price').filter({ hasText: '15,00 USD' })).toBeVisible();
+  await expect(page.locator('.billing-price').filter({ hasText: '25,00 USD' })).toBeVisible();
   await page.screenshot({ path: 'test-results/glu-billing.png', fullPage: true });
   await page.getByRole('button', { name: 'Elegir Pro', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Abrir Stripe', exact: true })).toBeVisible();

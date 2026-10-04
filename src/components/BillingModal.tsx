@@ -130,7 +130,8 @@ export function BillingModal() {
         )}
         <div className="billing-plans">
           {(['free', 'pro', 'plus'] as const).map((plan) => {
-            const price = status?.prices.find((p) => p.plan === plan);
+            const availablePrice = status?.prices.find((p) => p.plan === plan);
+            const price = availablePrice || PLANS[plan].monthlyPrice;
             const amount = price
               ? new Intl.NumberFormat('es-CL', {
                   style: 'currency',
@@ -186,7 +187,7 @@ export function BillingModal() {
                 ) : (
                   <button
                     className="primary"
-                    disabled={disabled || status?.plan === plan}
+                    disabled={disabled || !availablePrice || status?.plan === plan}
                     onClick={() => void action(current ? 'portal' : 'checkout', plan)}
                   >
                     {status?.plan === plan
@@ -202,8 +203,9 @@ export function BillingModal() {
         </div>
         <p className="privacy-caption">
           Las solicitudes de IA se reinician el primer día de cada mes (UTC); cada envío al
-          proveedor cuenta, incluso si falla. La transcripción de audio utiliza tu propia clave de
-          Deepgram. El total y los impuestos aplicables se muestran en Stripe antes de pagar.
+          proveedor cuenta, incluso si falla. La transcripción usa las credenciales de Glu y los
+          minutos incluidos en tu plan. El total y los impuestos aplicables se muestran en Stripe
+          antes de pagar.
         </p>
         {status?.limit ? (
           <p className="muted">

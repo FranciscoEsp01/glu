@@ -3,6 +3,7 @@ export type PaidFeature = 'summary' | 'knowledge' | 'transcription';
 export const PLANS = {
   free: {
     name: 'Gratis',
+    monthlyPrice: { amount: 0, currency: 'usd' },
     aiRequests: 0,
     tokens: 0,
     audioSeconds: 0,
@@ -10,6 +11,7 @@ export const PLANS = {
   },
   pro: {
     name: 'Pro',
+    monthlyPrice: { amount: 1500, currency: 'usd' },
     aiRequests: 100,
     tokens: 2000000,
     audioSeconds: 18000,
@@ -17,6 +19,7 @@ export const PLANS = {
   },
   plus: {
     name: 'Plus',
+    monthlyPrice: { amount: 2500, currency: 'usd' },
     aiRequests: 500,
     tokens: 10000000,
     audioSeconds: 90000,

@@ -15,11 +15,11 @@ El código está integrado, pero **no cobra ni opera contra una cuenta Stripe re
 
 ## Planes iniciales y política de acceso
 
-| Plan | Incluye | Cuota de IA |
-|---|---|---|
-| Gratis | Grabación, notas, historial local, importación, exportaciones y conexiones locales existentes | Sin IA gestionada |
-| Pro | Gratis + transcripción y resúmenes con IA | 100 solicitudes al mes |
-| Plus | Pro + preguntas sobre el historial | 500 solicitudes al mes en total |
+| Plan | Precio mensual | Incluye | Cuota de IA |
+|---|---|---|---|
+| Gratis | Sin costo | Grabación, notas, historial local, importación, exportaciones y conexiones locales existentes | Sin IA gestionada |
+| Pro | 15 USD | Gratis + transcripción y resúmenes con IA | 100 solicitudes al mes |
+| Plus | 25 USD | Pro + preguntas sobre el historial | 500 solicitudes al mes en total |
 
 La transcripción usa la clave Deepgram de Glu en el servidor. Pro incluye 300 minutos y 2 millones de tokens al mes; Plus incluye 1500 minutos y 10 millones de tokens. Resúmenes y preguntas comparten las cuotas de solicitudes existentes. Consulta `BACKEND_CONSUMO.md` para el registro y sus límites.
 
@@ -36,7 +36,7 @@ El historial, las copias y la exportación no dependen del pago. Ningún webhook
 ## Configurar Stripe
 
 1. Usa primero una cuenta y claves de **test**. La cuenta comercial debe poder operar en el país de la entidad vendedora.
-2. Crea productos Pro y Plus con un precio recurrente mensual cada uno, importe fijo, cantidad 1 y sin facturación por consumo. Copia sus IDs `price_...`.
+2. Crea productos Pro y Plus con precios recurrentes mensuales en USD: **Pro 15 USD/mes** (`unit_amount=1500`) y **Plus 25 USD/mes** (`unit_amount=2500`), cantidad 1 y sin facturación por consumo. Copia sus IDs `price_...` en `STRIPE_PRICE_PRO` y `STRIPE_PRICE_PLUS`. El backend rechaza otros importes, monedas o intervalos para evitar cobrar un precio diferente al publicado. Si ya existen precios con otros importes, crea nuevos precios y actualiza los IDs; las suscripciones existentes necesitan una migración explícita en Stripe.
 3. Crea una configuración del Customer Portal y copia su ID `bpc_...`. Habilita actualización de medio de pago, historial de facturas y cancelación **al final del período**. Para cambios de plan permite únicamente los productos/precios Pro y Plus, sin cambios de cantidad. Configura la política de prorrateo y pago de las actualizaciones antes de activarlas comercialmente.
 4. Habilita en Stripe la opción de limitar cada cliente a una suscripción y dirigir suscriptores existentes al portal. Glu también comprueba suscripciones existentes y reutiliza Checkout abiertos; la opción de Stripe cubre la carrera con pagos completados en otra pestaña mientras se crea una sesión.
 5. Configura los reintentos de cobro y correos de pagos fallidos en Stripe Billing. Glu muestra el aviso y el portal, pero no envía correos de cobro por cuenta propia.
@@ -105,3 +105,5 @@ En el proyecto de test real, verifica: compra de ambos planes, actualización de
 - La separación de archivos locales no es cifrado ni DRM. La protección real del servicio pagado está en paid-ai; no en un booleano del cliente.
 
 Referencias: [Checkout](https://docs.stripe.com/payments/checkout/build-subscriptions), [webhooks de suscripciones](https://docs.stripe.com/billing/subscriptions/webhooks), [portal](https://docs.stripe.com/customer-management), [firmas en Supabase Edge](https://supabase.com/docs/guides/functions/examples/stripe-webhooks).
+
+Los precios base publicados son Gratis sin costo, Pro **15 USD al mes** y Plus **25 USD al mes**. La pantalla muestra estos importes incluso si el servicio está temporalmente no disponible; contratar requiere un catálogo de Stripe validado por el servidor. Los impuestos aplicables se muestran en Checkout.
