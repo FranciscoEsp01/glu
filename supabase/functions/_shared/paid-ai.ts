@@ -1,3 +1,4 @@
+import { fingerprint, replay } from './operations.ts';
 import {
   authorizeFeature,
   cors,
@@ -21,11 +22,14 @@ export function paidAIHandler(r: Runtime) {
       const prompt = buildPrompt(body);
       if (body.feature !== 'summary' && body.feature !== 'knowledge')
         throw new HttpError(400, 'Función inválida.');
+      const id = requestId(req.headers.get('x-request-id'));
+      const hash = await fingerprint(JSON.stringify(body), body.feature);
+      const recovered = await replay(r, user.id, id, hash, headers);
+      if (recovered) return recovered;
       if (!r.config.geminiKey)
         throw new HttpError(503, 'El procesamiento de IA aún no está disponible.');
       // This is the enforcement boundary. Editing client state cannot bypass this check.
       const plan = await authorizeFeature(r, user.id, body.feature);
-      const id = requestId(req.headers.get('x-request-id'));
       await reserve(
         r,
         user.id,
@@ -33,6 +37,8 @@ export function paidAIHandler(r: Runtime) {
         body.feature,
         plan,
         new TextEncoder().encode(prompt).length + 8192,
+        0,
+        hash,
       );
       let providerStatus: number | undefined;
       let settled = false;
@@ -61,10 +67,23 @@ export function paidAIHandler(r: Runtime) {
           );
         const data = await response.json();
         settled = true;
-        await finish(r, user.id, id, true, usageMetadata(data), providerStatus);
+        await finish(r, user.id, id, true, usageMetadata(data), providerStatus, data);
         return Response.json(data, { headers });
       } catch (error) {
-        if (!settled) await finish(r, user.id, id, false, undefined, providerStatus);
+        if (!settled) {
+          const canRetry =
+            providerStatus === 429 || (providerStatus !== undefined && providerStatus >= 500);
+          await finish(r, user.id, id, false, undefined, providerStatus, undefined, canRetry);
+          throw new HttpError(
+            502,
+            error instanceof HttpError
+              ? error.message
+              : 'El resultado del proveedor no está confirmado.',
+            canRetry ? 'provider_failed' : 'operation_unknown',
+            canRetry,
+            canRetry,
+          );
+        }
         throw error;
       }
     } catch (error) {

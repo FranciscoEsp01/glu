@@ -26,7 +26,6 @@ El flujo individual está implementado. Aún no están implementadas las cuentas
 
 La ampliación incluye pruebas de citas exactas, recuperación del historial, previsualización antes de enviar y temporizador resistente a retrasos del navegador. Slack/Notion y preguntas a Gemini se validaron con respuestas controladas; no se enviaron mensajes reales.
 
-
 ## Actualización: acceso de usuarios (1 de octubre de 2026)
 
 - Supabase Auth con código por correo, verificación remota de sesión, cierre y vencimiento de sesión.
@@ -38,7 +37,6 @@ La ampliación incluye pruebas de citas exactas, recuperación del historial, pr
 - No se verificó la compilación nativa de estos cambios: Cargo no está instalado en este entorno. Las validaciones nativas anteriores de este documento corresponden a la versión previa al login.
 - Las cuentas no incluyen sincronización ni equipos; véase `AUTENTICACION.md` para configuración, migración del historial previo y límites de la separación local.
 
-
 ## Actualización: suscripciones (1 de octubre de 2026)
 
 - Integración Stripe Checkout/Portal, cancelación al vencimiento y reactivación; estados de impago y control de acceso real en Edge Functions.
@@ -47,7 +45,6 @@ La ampliación incluye pruebas de citas exactas, recuperación del historial, pr
 - 20 pruebas de navegador aprobadas entre los flujos existentes y los cuatro nuevos casos de facturación. Se corrigió una superposición que impedía pulsar Gestionar pagos ante un pago fallido.
 - Comprobación TypeScript del backend (`npm run check:billing`) y build web correctos. Vista de facturación inspeccionada mediante captura.
 - Pendientes externos: despliegue Supabase, configuración Stripe/SMTP, prueba real en Stripe test y compilación nativa (Cargo no está instalado). No se realizaron cobros reales. Las pruebas de pagos usan respuestas controladas; no certifican operación en producción.
-
 
 ## Entrega macOS 0.4.0 (1 de octubre de 2026)
 
@@ -60,7 +57,6 @@ La ampliación incluye pruebas de citas exactas, recuperación del historial, pr
 - El paquete incluye login y facturación, pero el acceso muestra configuración pendiente: no hay URL/clave pública Supabase configuradas en este workspace. No se validaron correos, Keychain con una sesión real ni cobros Stripe reales. Se requiere recompilar tras configurar `.env.local` y activar el backend.
 - El paquete tiene firma local; no cuenta con Developer ID ni notarización pública. Véase `MACOS.md`.
 
-
 ## Corrección del acceso en Mac — 0.4.1 (2026-10-01)
 
 El paquete 0.4.0 mostraba «El acceso todavía no está disponible» porque fue compilado sin las variables públicas de Supabase. Se genera 0.4.1 con la configuración actual de `.env.local`, sin incorporar los secretos del servidor.
@@ -69,20 +65,17 @@ La consulta de lectura a `/auth/v1/settings` con la clave pública devolvió HTT
 
 Validación final: `npm run build:mac` completó el frontend y el ejecutable nativo; `codesign --verify --deep --strict` y `hdiutil verify` pasaron. Se abrió `release/Glu.app` 0.4.1 y se comprobó en la ventana nativa el campo «Correo electrónico» y el botón «Continuar con correo», sin el mensaje de acceso no disponible. Se conserva el paquete anterior en `release/archive/Glu-0.4.0-unconfigured.app`.
 
-
 ## Corrección de URL de Auth y facturación — 0.4.2
 
 El diagnóstico dentro de macOS identificó HTTP 404: `.env.local` contenía una URL con `/rest/v1/`. La comprobación anterior de settings reemplazaba el pathname y por ello no detectó este defecto. Se corrigió la URL local y se añadió normalización compartida de la URL base para Auth y Edge Functions; rutas ambiguas, credenciales y parámetros se rechazan. Los errores muestran identificadores estructurados sin mensajes sensibles del servidor.
 
 Validación: 24 pruebas unitarias/integración y 10 e2e de Auth/facturación aprobadas, build nativo 0.4.2 y firma ad hoc verificados. En la app macOS se solicitó un código con éxito y se comprobó la pantalla «Revisa tu correo» con el campo «Código de verificación». La recepción del correo y la introducción del código quedan a cargo del usuario.
 
-
 ## Google OAuth — 0.5.0
 
 Se añadió Google en web y macOS con PKCE S256, estado por intento y retorno nativo en loopback `127.0.0.1:42813`. El listener exige ruta/estado válidos y se cierra por retorno, cancelación o timeout. Los verificadores temporales se separaron de la sesión en Keychain.
 
 Validación: 25 e2e aprobadas (incluyendo retorno web, retorno nativo simulado, aislamiento de Keychain y rechazo de callback no solicitado), 2 pruebas Rust aprobadas, `check:billing`, compilación web/nativa y verificación de firma/DMG completadas. Se abrió Glu 0.5.0 y se comprobó el botón «Continuar con Google». El acceso real queda pendiente de habilitar el proveedor y los Redirect URLs en Supabase y del consentimiento del usuario.
-
 
 ## Backend administrado y consumo — 0.6.0 (2026-10-04)
 
@@ -91,3 +84,17 @@ Se añadió transcripción administrada por Glu con PCM medido en servidor, ledg
 Validación: 28 pruebas unitarias/integración aprobadas con PostgreSQL real, comprobación TypeScript del backend y compilación web/nativa. Los casos de interfaz existentes de login pasaron, y los de grabación, conservación de audio y facturación se validaron tras actualizar los mocks a la transcripción administrada; el nuevo caso de consumo pasó por separado. Se generó y verificó Glu 0.6.0 para Apple Silicon. No se realizaron llamadas reales a los proveedores ni cobros en las pruebas.
 
 Despliegue remoto pendiente: no hay CLI Supabase autenticada en el entorno; `check:backend-env` detectó pendientes STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_PRO, STRIPE_PRICE_PLUS, STRIPE_PORTAL_CONFIGURATION_ID y DEEPGRAM_API_KEY. Se documentan migraciones, publicación y verificación en BACKEND_CONSUMO.md.
+
+## Procesamiento persistente — 0.7.0
+
+- 37 pruebas unitarias/integración aprobadas: reserva con huella, recuperación de resultados, concurrencia, estados inciertos, expiración, aislamiento de cuentas, continuidad y presupuesto de reintentos.
+- 29 pruebas de navegador aprobadas: recuperación tras recargar, salto de bloques ya guardados, estado bloqueado y cancelación, además de los flujos existentes de autenticación, facturación, captura e historial.
+- TypeScript del backend y build web aprobados. Las pruebas usan PostgreSQL real embebido y proveedores simulados; no generan cobros ni certifican el despliegue remoto.
+- La migración `202610040002_processing.sql`, los handlers `paid-ai`/`transcribe` y la limpieza programada deben desplegarse siguiendo `PROCESAMIENTO_FIABLE.md`. No se ha activado el backend remoto durante esta entrega.
+- Instalador Mac Apple Silicon 0.7.0 compilado; firma ad hoc estricta y checksum del DMG verificados. No está notarizado para distribución pública.
+
+## Entrega 0.8.0
+
+39 pruebas de lógica/backend y 31 de navegador. Se comprueban permisos de operador, aislamiento por RLS, alertas y reconocimiento, readiness sin filtración de errores y distinción del modo de pagos. Se verificaron Supabase Auth, los rechazos anónimos del backend desplegado, precios/portal Stripe y una firma de webhook de pruebas. Gemini responde al listado de modelos; no se ha realizado una generación de pago ni una transcripción real. Ver `release/backend-readiness.json` y [Estado de lanzamiento](LANZAMIENTO_SAAS.md).
+
+Se abrió Glu 0.8.0 en Mac y se comprobó una sesión real restaurada. La cuenta autorizada consultó el panel operativo del backend desplegado sin errores. La facturación mostró los precios del catálogo de Stripe de pruebas; no se inició ningún pago.

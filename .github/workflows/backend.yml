@@ -1,0 +1,34 @@
+name: Deploy Glu backend
+on: workflow_dispatch
+permissions:
+  contents: read
+concurrency:
+  group: glu-backend-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment: production
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check:billing
+      - run: npm test
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.118.0
+      - name: Verify deployment credentials
+        run: test -n "$SUPABASE_ACCESS_TOKEN" && test -n "$SUPABASE_DB_PASSWORD" && test -n "$SUPABASE_PROJECT_REF"
+      - run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      - run: supabase db push
+      - run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
+      - name: Check readiness
+        run: curl --fail --retry 3 "https://$SUPABASE_PROJECT_REF.supabase.co/functions/v1/health"

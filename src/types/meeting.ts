@@ -1,3 +1,4 @@
+import type { ProcessingJob } from '../services/processing-state';
 export type TemplateType = 'general' | 'sales' | 'one_on_one' | 'ux_research' | 'standup';
 export interface Participant {
   id: string;
@@ -48,6 +49,7 @@ export interface Meeting {
   isStarred?: boolean;
   status?: 'recording' | 'pending' | 'processing' | 'ready' | 'error';
   error?: string;
+  processingJob?: ProcessingJob;
 }
 export interface TemplateDefinition {
   id: TemplateType;

@@ -1,3 +1,4 @@
+import { isJobPending, jobLabel } from '../services/processing-state';
 import { useEffect, useState } from 'react';
 import { Star, Copy, Download, Trash2, Sparkles, FileText, ArrowUpRight, Plus } from 'lucide-react';
 import { useMeetingStore } from '../store/useMeetingStore';
@@ -193,6 +194,38 @@ export function MeetingView() {
           ? `${meeting.participants.length} hablantes`
           : 'Sin participantes identificados'}
       </p>
+      {meeting.processingJob && (
+        <div className="notice" role="status" aria-label="Estado del procesamiento">
+          <strong>{jobLabel(meeting.processingJob)}</strong>
+          <p>
+            Intentos de la operación:{' '}
+            {Math.min(
+              meeting.processingJob.attempts + (meeting.processingJob.state === 'running' ? 1 : 0),
+              3,
+            )}{' '}
+            de 3.
+          </p>
+          {meeting.processingJob.nextAttemptAt && (
+            <p>
+              Próximo intento:{' '}
+              {new Date(meeting.processingJob.nextAttemptAt).toLocaleTimeString('es-CL')}
+            </p>
+          )}
+          {meeting.processingJob.error && <p>{meeting.processingJob.error}</p>}
+          {['queued', 'retry_wait', 'blocked', 'failed'].includes(meeting.processingJob.state) && (
+            <button
+              disabled={s.isProcessingAI}
+              onClick={() => void s.cancelProcessingJob(meeting.id)}
+            >
+              Cancelar trabajo
+            </button>
+          )}
+          <p>
+            El avance se guarda en este dispositivo. Glu reanuda los trabajos al abrirse con tu
+            cuenta.
+          </p>
+        </div>
+      )}
       <div className="document-actions">
         <button onClick={() => setSharing('slack')} disabled={busy}>
           Slack ↗
@@ -202,15 +235,17 @@ export function MeetingView() {
         </button>
         <button
           className="primary"
-          disabled={busy}
+          disabled={s.isRecording || s.isStarting || isJobPending(meeting.processingJob)}
           onClick={() => void s.processMeeting(meeting.id)}
         >
           <Sparkles size={15} />
-          {s.isProcessingAI
+          {isJobPending(meeting.processingJob)
             ? 'Procesando…'
-            : meeting.status === 'ready'
-              ? 'Regenerar resumen'
-              : 'Generar resumen'}
+            : meeting.processingJob && ['blocked', 'failed'].includes(meeting.processingJob.state)
+              ? 'Reanudar procesamiento'
+              : meeting.status === 'ready'
+                ? 'Regenerar resumen'
+                : 'Generar resumen'}
         </button>
         <button
           onClick={async () => {
@@ -319,7 +354,7 @@ export function MeetingView() {
         <span>GUARDADO AUTOMÁTICO</span>
       </div>
       <TipTapEditor
-        editable={!s.isProcessingAI}
+        editable={!s.isProcessingAI && !isJobPending(meeting.processingJob)}
         key={meeting.id}
         content={meeting.manualNotes}
         onChange={(manualNotes) => s.updateMeeting(meeting.id, { manualNotes })}

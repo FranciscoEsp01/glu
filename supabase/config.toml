@@ -10,3 +10,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.transcribe]
 verify_jwt = false
+[functions.health]
+verify_jwt = false
+[functions.operations-admin]
+verify_jwt = false

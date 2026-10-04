@@ -86,7 +86,8 @@ export function SettingsModal() {
         <p className="notice">
           El audio se guarda temporalmente para recuperar errores. Al procesar, se envía a Deepgram;
           la transcripción y tus apuntes pasan por el servidor de Glu para validar tu plan y se
-          envían a Google Gemini. El historial permanece en este dispositivo. Si desactivas
+          envían a Google Gemini. Para recuperar respuestas perdidas, el servidor conserva los
+          resultados durante 24 horas. El historial permanece en este dispositivo. Si desactivas
           conservar audio, se elimina tras generar y guardar el resumen correctamente.
         </p>
         <details className="integration-settings">

@@ -1,3 +1,11 @@
+import { managedTranscription } from '../services/managed-transcription';
+import {
+  ProcessingError,
+  isJobPending,
+  retryJob,
+  type ProcessingJob,
+} from '../services/processing-state';
+import { accountKey } from '../services/account';
 import { billingRequest } from '../services/billing';
 import { create } from 'zustand';
 import { Meeting, TemplateType, TranscriptSegment, AISettings } from '../types/meeting';
@@ -54,6 +62,8 @@ interface MeetingStoreState {
   stopRecordingAndProcess: () => Promise<void>;
   cancelRecording: () => Promise<void>;
   processMeeting: (id: string) => Promise<void>;
+  runProcessingJobs: () => Promise<void>;
+  cancelProcessingJob: (id: string) => Promise<void>;
   importMeeting: (text: string, audio?: File) => Promise<void>;
   addRapidNote: (s: string) => void;
   setCurrentNoteInput: (s: string) => void;
@@ -284,57 +294,221 @@ export const useMeetingStore = create<MeetingStoreState>((set, get) => ({
     await get().stopRecordingAndProcess();
   },
   processMeeting: async (id) => {
-    if (get().isProcessingAI || get().isRecording || get().isStarting) return;
-    let meeting = get().meetings.find((m) => m.id === id);
-    if (!meeting) return;
-    set({ isProcessingAI: true, error: null });
-    get().updateMeeting(id, { status: 'processing', error: undefined });
+    if (get().isRecording || get().isStarting) return;
+    const meeting = get().meetings.find((m) => m.id === id);
+    if (!meeting || isJobPending(meeting.processingJob)) return;
+    const previous = meeting.processingJob;
+    const now = new Date().toISOString();
+    const resume = previous && ['blocked', 'failed'].includes(previous.state);
+    const job: ProcessingJob = resume
+      ? {
+          ...previous,
+          state: 'queued',
+          attempts: 0,
+          nextAttemptAt: undefined,
+          requestId: previous.newOperation ? crypto.randomUUID() : previous.requestId,
+          operationStartedAt: previous.newOperation ? undefined : previous.operationStartedAt,
+          error: undefined,
+          updatedAt: now,
+        }
+      : {
+          id: crypto.randomUUID(),
+          state: 'queued',
+          stage: !meeting.rawTranscript.length && meeting.hasAudio ? 'transcription' : 'summary',
+          requestId: crypto.randomUUID(),
+          attempts: 0,
+          createdAt: now,
+          updatedAt: now,
+          nextChunk: 0,
+          partialTranscript: [],
+          payload: {
+            title: meeting.title,
+            templateType: meeting.templateType,
+            transcript: meeting.rawTranscript,
+            manualNotes: meeting.manualNotes,
+            rapidNotes: meeting.originalNotes ? [meeting.originalNotes] : [],
+            durationMinutes: meeting.durationMinutes,
+          },
+          settings: {
+            preferredLanguage: get().settings.preferredLanguage,
+            saveLocalAudio: get().settings.saveLocalAudio,
+          },
+        };
+    get().updateMeeting(id, { processingJob: job, status: 'pending', error: undefined });
     try {
-      await billingRequest('billing', { action: 'authorize', feature: 'summary' });
-      const settings = { ...get().settings };
-      if (!meeting.rawTranscript.length && meeting.hasAudio) {
-        const blob = await storage.getAudio(id);
-        if (!blob) throw new Error('El audio no está disponible. Puedes pegar una transcripción.');
-        const rawTranscript = await AIService.transcribe(id, blob, settings);
-        get().updateMeeting(id, {
-          rawTranscript,
-          participants: [...new Set(rawTranscript.map((t) => t.speaker))].map((name) => ({
-            id: name,
-            name,
-          })),
-        });
-        meeting = { ...meeting, rawTranscript };
-      }
-      const result = await AIService.processMeeting(
-        {
-          title: meeting.title,
-          templateType: meeting.templateType,
-          transcript: meeting.rawTranscript,
-          manualNotes: meeting.manualNotes,
-          rapidNotes: meeting.originalNotes ? [meeting.originalNotes] : [],
-          durationMinutes: meeting.durationMinutes,
-        },
-        settings,
-      );
-      get().updateMeeting(id, {
-        originalNotes: meeting.originalNotes || meeting.manualNotes.replace(/<[^>]+>/g, ' '),
-        title: result.title || meeting.title,
-        executiveSummary: result.executiveSummary,
-        actionItems: result.actionItems,
-        keyDecisions: result.keyDecisions,
-        unresolvedQuestions: result.unresolvedQuestions,
-        manualNotes: result.enrichedNotes,
-        status: 'ready',
-        error: undefined,
-      });
       await flushMeetings();
-      if (!settings.saveLocalAudio && meeting.hasAudio) {
-        await storage.deleteAudio(id);
-        get().updateMeeting(id, { hasAudio: false });
-      }
+      await get().runProcessingJobs();
     } catch (e) {
-      get().updateMeeting(id, { status: 'error', error: errorText(e) });
       set({ error: errorText(e) });
+    }
+  },
+  cancelProcessingJob: async (id) => {
+    const job = get().meetings.find((m) => m.id === id)?.processingJob;
+    if (!job || get().isProcessingAI || job.state === 'succeeded') return;
+    get().updateMeeting(id, {
+      processingJob: { ...job, state: 'canceled', updatedAt: new Date().toISOString() },
+      status: 'pending',
+      error: undefined,
+    });
+    try {
+      await flushMeetings();
+    } catch (e) {
+      set({ error: errorText(e) });
+    }
+  },
+  runProcessingJobs: async () => {
+    if (
+      !get().initialized ||
+      get().isProcessingAI ||
+      get().isStarting ||
+      get().isRecording ||
+      !navigator.onLine
+    )
+      return;
+    if (
+      !get().meetings.some(
+        (m) =>
+          isJobPending(m.processingJob) &&
+          (!m.processingJob?.nextAttemptAt ||
+            Date.parse(m.processingJob.nextAttemptAt) <= Date.now()),
+      )
+    )
+      return;
+    set({ isProcessingAI: true });
+    const work = async () => {
+      await flushMeetings();
+      // Read checkpoints again under the runner lock so another window's completion is respected.
+      const snapshot = get().meetings;
+      const loaded = await storage.load();
+      const meetings = get().meetings === snapshot ? loaded : get().meetings;
+      set({ meetings });
+      const meeting = [...meetings]
+        .sort(
+          (a, b) =>
+            Date.parse(a.processingJob?.createdAt || a.date) -
+            Date.parse(b.processingJob?.createdAt || b.date),
+        )
+        .find(
+          (m) =>
+            isJobPending(m.processingJob) &&
+            (!m.processingJob?.nextAttemptAt ||
+              Date.parse(m.processingJob.nextAttemptAt) <= Date.now()),
+        );
+      if (!meeting?.processingJob) return;
+      const id = meeting.id;
+      let job: ProcessingJob = {
+        ...meeting.processingJob,
+        state: 'running',
+        operationStartedAt: meeting.processingJob.operationStartedAt || new Date().toISOString(),
+        nextAttemptAt: undefined,
+        updatedAt: new Date().toISOString(),
+      };
+      const checkpoint = async (
+        changes: Partial<ProcessingJob>,
+        updates: Partial<Meeting> = {},
+      ) => {
+        job = { ...job, ...changes, updatedAt: new Date().toISOString() };
+        get().updateMeeting(id, { ...updates, processingJob: job });
+        await flushMeetings();
+      };
+      try {
+        await checkpoint({}, { status: 'processing', error: undefined });
+        if (job.stage === 'summary' && !meeting.processingJob.operationStartedAt)
+          await billingRequest('billing', { action: 'authorize', feature: 'summary' });
+        if (job.stage === 'transcription') {
+          // Prevent spending audio minutes when the account cannot generate summaries.
+          await billingRequest('billing', { action: 'authorize', feature: 'summary' });
+          const blob = await storage.getAudio(id);
+          if (!blob)
+            throw new ProcessingError(
+              'El audio no está disponible. Puedes pegar una transcripción.',
+              'missing_audio',
+            );
+          const rawTranscript = await managedTranscription(blob, job.settings.preferredLanguage, {
+            nextChunk: job.nextChunk,
+            partial: job.partialTranscript,
+            requestId: async () => {
+              if (!job.operationStartedAt)
+                await checkpoint({ operationStartedAt: new Date().toISOString() });
+              return job.requestId;
+            },
+            save: async (nextChunk, totalChunks, partialTranscript) =>
+              checkpoint({
+                nextChunk,
+                totalChunks,
+                partialTranscript,
+                attempts: 0,
+                requestId: crypto.randomUUID(),
+                operationStartedAt: undefined,
+              }),
+          });
+          await checkpoint(
+            {
+              stage: 'summary',
+              payload: { ...job.payload, transcript: rawTranscript },
+              partialTranscript: [],
+              attempts: 0,
+              requestId: crypto.randomUUID(),
+              operationStartedAt: undefined,
+            },
+            {
+              rawTranscript,
+              participants: [...new Set(rawTranscript.map((t) => t.speaker))].map((name) => ({
+                id: name,
+                name,
+              })),
+            },
+          );
+        }
+        if (!job.operationStartedAt)
+          await checkpoint({ operationStartedAt: new Date().toISOString() });
+        const result = await AIService.processMeeting(job.payload, job.settings, job.requestId);
+        await checkpoint(
+          { state: 'succeeded', error: undefined, code: undefined, newOperation: false },
+          {
+            originalNotes:
+              meeting.originalNotes || job.payload.manualNotes.replace(/<[^>]+>/g, ' '),
+            title: result.title || meeting.title,
+            executiveSummary: result.executiveSummary,
+            actionItems: result.actionItems,
+            keyDecisions: result.keyDecisions,
+            unresolvedQuestions: result.unresolvedQuestions,
+            manualNotes: result.enrichedNotes,
+            status: 'ready',
+            error: undefined,
+          },
+        );
+        if (!job.settings.saveLocalAudio && meeting.hasAudio) {
+          try {
+            await storage.deleteAudio(id);
+            get().updateMeeting(id, { hasAudio: false });
+            await flushMeetings();
+          } catch {
+            set({ error: 'El resumen está guardado, pero no se pudo eliminar el audio local.' });
+          }
+        }
+      } catch (e) {
+        const next = retryJob(job, e);
+        // A failed local write stops the runner before any further paid request.
+        await checkpoint(next, {
+          status: next.state === 'retry_wait' ? 'pending' : 'error',
+          error: next.error,
+        });
+        if (next.state !== 'retry_wait') set({ error: next.error });
+      }
+    };
+    try {
+      if (navigator.locks)
+        await navigator.locks.request(
+          accountKey('glu-processing'),
+          { ifAvailable: true },
+          async (lock) => {
+            if (lock) await work();
+          },
+        );
+      else await work();
+    } catch (e) {
+      set({ error: `No pudimos guardar el trabajo: ${errorText(e)}` });
     } finally {
       set({ isProcessingAI: false });
     }

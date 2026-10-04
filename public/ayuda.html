@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ayuda · Glu</title>
+    <link rel="stylesheet" href="/producto.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <nav aria-label="Navegación">
+        <a href="/producto.html" aria-label="Glu"><img src="/glu.svg" alt="" /><span>glu.</span></a>
+        <div><a href="/producto.html#planes">Planes</a><a href="/">Abrir Glu</a></div>
+      </nav>
+      <main class="help">
+        <span class="eyebrow">Centro de ayuda</span>
+        <h1>Continúa donde lo dejaste.</h1>
+        <details open>
+          <summary>¿Dónde se guardan mis reuniones?</summary>
+          <p>
+            En este dispositivo, separadas por cuenta. Iniciar sesión en otro equipo no recupera ese
+            historial. Exporta una copia de seguridad antes de cambiar de equipo o eliminar los
+            datos de la aplicación.
+          </p>
+        </details>
+        <details>
+          <summary>¿Cómo inicio sesión?</summary>
+          <p>
+            Usa el código enviado a tu correo o el acceso con Google. Si un enlace dirige a
+            localhost y no abre, vuelve al formulario de Glu y usa el código. Comprueba también que
+            el correo no esté en spam.
+          </p>
+        </details>
+        <details>
+          <summary>¿Qué hago si una operación se interrumpe?</summary>
+          <p>
+            Glu conserva el estado y los fragmentos completados. Con la aplicación abierta, sesión
+            activa y conexión disponible, puede retomar operaciones recuperables. Un resultado
+            incierto requiere revisión para evitar repetir una llamada de pago. El botón de
+            reintento indica cuándo puedes continuar.
+          </p>
+        </details>
+        <details>
+          <summary>¿Sigue procesando con la aplicación cerrada?</summary>
+          <p>
+            No. Conserva el progreso, pero necesitas volver a abrir Glu para continuar. Cancelar
+            detiene los siguientes pasos; una petición ya enviada al proveedor puede terminar y
+            consumir cuota.
+          </p>
+        </details>
+        <details>
+          <summary>¿Cómo cambio o cancelo mi plan?</summary>
+          <p>
+            Abre el apartado de tu plan en Glu. Desde ahí puedes administrar la suscripción y el
+            medio de pago. Cancelar la renovación conserva el acceso hasta el fin del período
+            pagado, salvo que el estado del pago deje de permitirlo.
+          </p>
+        </details>
+        <details>
+          <summary>¿Qué ocurre si falla un pago?</summary>
+          <p>
+            Las funciones de pago se bloquean según el estado de la suscripción. Abre el portal de
+            pagos para corregir el medio de pago. El acceso se recupera cuando Stripe confirma una
+            suscripción válida. Evita crear otra suscripción para resolver un pago pendiente.
+          </p>
+        </details>
+        <details>
+          <summary>¿Cuándo se reinician los límites?</summary>
+          <p>
+            El primer día de cada mes a las 00:00 UTC. Las solicitudes y los tokens tienen límites
+            independientes de los minutos de transcripción. Una llamada enviada al proveedor puede
+            consumir cuota aunque falle; recuperar una respuesta con el mismo identificador no crea
+            otra llamada.
+          </p>
+        </details>
+        <details>
+          <summary>¿Qué información se envía a los servicios?</summary>
+          <p>
+            Supabase gestiona el acceso y los registros de consumo. Stripe gestiona el pago. Gemini
+            recibe el texto necesario para las funciones de IA y Deepgram recibe los fragmentos de
+            audio para transcribir. El backend conserva resultados durante hasta 24 horas para
+            recuperar entregas interrumpidas; la limpieza se ejecuta periódicamente.
+          </p>
+        </details>
+        <details>
+          <summary>Necesito ayuda con un error</summary>
+          <p>
+            Anota la versión de Glu, el mensaje, la hora y el identificador de operación si aparece.
+            No compartas claves, códigos de acceso ni transcripciones completas. El canal de soporte
+            se publicará cuando se complete la configuración comercial de Glu.
+          </p>
+        </details>
+      </main>
+    </div>
+    <footer>
+      <div class="wrap"><a href="/producto.html">Volver a Glu</a></div>
+    </footer>
+  </body>
+</html>

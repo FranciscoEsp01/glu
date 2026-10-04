@@ -18,9 +18,9 @@ npm run tauri build -- --bundles app
 
 La captura nativa requiere **macOS 15 o posterior** y permisos de micrófono y grabación de pantalla/audio. Se compila un auxiliar Swift usando ScreenCaptureKit; no se guardan imágenes de la pantalla. El build admite Apple Silicon e Intel según el target de compilación. La compilación verificada en este equipo es Apple Silicon. Windows no tiene todavía motor de captura nativo; la versión web permite usar micrófono y, cuando el navegador lo permita, compartir audio de una pestaña.
 
-## Versión macOS 0.6.1
+## Versión macOS 0.7.0
 
-La app actualizada está en `release/Glu-0.6.1.app` y el instalador Apple Silicon en `release/Glu_0.6.1_aarch64.dmg`. Incluyen login, facturación y consumo gestionado por el backend. Consulta [macOS](docs/MACOS.md) para configurar los servicios, recompilar y conocer el alcance de la firma local.
+La app actualizada está en `release/Glu-0.7.0.app` y el instalador Apple Silicon en `release/Glu_0.7.0_aarch64.dmg`. Incluyen login, facturación y consumo gestionado por el backend. Consulta [macOS](docs/MACOS.md) para configurar los servicios, recompilar y conocer el alcance de la firma local.
 
 ## Acceso de usuarios
 
@@ -101,3 +101,7 @@ Los botones Slack y Notion muestran el contenido exacto antes de enviarlo. No in
 «Copias del historial» exporta notas y transcripciones en JSON. No incluye audio, ajustes ni credenciales. Al restaurar, los IDs ya existentes conservan su contenido actual. Guarda los audios por separado si quieres conservarlos fuera de Glu.
 
 Referencias de integración: [Slack chat.postMessage](https://docs.slack.dev/reference/methods/chat.postMessage/) y [límites de Notion](https://developers.notion.com/reference/request-limits).
+
+La versión 0.7.0 añade trabajos persistentes por cuenta, reintentos limitados y recuperación de bloques de audio y respuestas perdidas. Consulta [Procesamiento fiable](docs/PROCESAMIENTO_FIABLE.md) para estados, retención temporal y despliegue.
+
+La versión 0.8.0 añade panel de operaciones, avisos, consumo por cuenta, costes configurables, readiness, herramientas de comprobación, CI y páginas de producto/ayuda. Se desplegaron la base de datos y las seis funciones en Supabase y se configuró el catálogo de Stripe de pruebas. Consulta [Estado de lanzamiento](docs/LANZAMIENTO_SAAS.md) para lo verificado y los pendientes comerciales.

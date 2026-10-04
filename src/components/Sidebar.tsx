@@ -1,3 +1,4 @@
+import { OperationsPanel } from './OperationsPanel';
 import { useBillingStore } from '../store/useBillingStore';
 import { PLANS, billingNotice } from '../services/billing';
 import { useAccount } from './AccountContext';
@@ -133,6 +134,7 @@ export function Sidebar() {
           Revisa el estado de tu suscripción
         </button>
       )}
+      <OperationsPanel />
       <div className="account-footer">
         <span title={account.email}>{account.email}</span>
         <button

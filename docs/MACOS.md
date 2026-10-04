@@ -1,14 +1,14 @@
-# Glu para macOS — versión 0.6.1
+# Glu para macOS — versión 0.7.0
 
-La versión 0.6.1 utiliza las credenciales de Gemini y Deepgram de Glu en el servidor y muestra las cuotas de consumo. Para activarlas, consulta `BACKEND_CONSUMO.md`.
+La versión 0.7.0 añade una cola persistente por cuenta con recuperación y estados visibles (ver `PROCESAMIENTO_FIABLE.md`), y utiliza las credenciales de Gemini y Deepgram de Glu en el servidor y muestra las cuotas de consumo. Para activarlas, consulta `BACKEND_CONSUMO.md`.
 
 Esta versión incluye el acceso Supabase con Google (ver `GOOGLE_AUTH.md`) y por código de correo y Plan y facturación con Stripe. Comparte el frontend y las comprobaciones de servidor con la versión web.
 
-La entrega 0.6.1 incorpora la configuración pública de Supabase de `.env.local`, que faltaba en el paquete 0.4.0. Cambiar ese archivo exige volver a compilar e instalar la app.
+La entrega 0.7.0 incorpora la configuración pública de Supabase de `.env.local`, que faltaba en el paquete 0.4.0. Cambiar ese archivo exige volver a compilar e instalar la app.
 
 ## Uso
 
-Abre `release/Glu-0.6.1.app` o instala desde `release/Glu_0.6.1_aarch64.dmg`. Requiere un Mac con Apple Silicon y macOS 15 o posterior. La versión anterior se conserva en `release/archive/`.
+Abre `release/Glu-0.8.0.app` o instala desde `release/Glu_0.8.0_aarch64.dmg`. Requiere un Mac con Apple Silicon y macOS 15 o posterior. La versión anterior se conserva en `release/archive/`.
 
 El login debe estar configurado antes de compilar:
 
@@ -46,9 +46,13 @@ La configuración usa firma **ad hoc** (`signingIdentity: "-"`) para sellar el p
 Comprueba la versión y el sello del paquete:
 
 ```sh
-/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' release/Glu-0.6.1.app/Contents/Info.plist
-codesign --verify --deep --strict release/Glu-0.6.1.app
-hdiutil verify release/Glu_0.6.1_aarch64.dmg
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' release/Glu-0.8.0.app/Contents/Info.plist
+codesign --verify --deep --strict release/Glu-0.8.0.app
+hdiutil verify release/Glu_0.8.0_aarch64.dmg
 ```
 
 La compilación de esta entrega utiliza el toolchain existente en `/private/tmp/glu-cargo` y `/private/tmp/glu-rustup`, que no estaba en el PATH normal, y la caché de build nativo anterior. No dependas de esas carpetas temporales para futuras compilaciones; configura Rust en tu entorno habitual.
+
+## Preparación comercial de 0.8.0
+
+Incluye el panel de operaciones para cuentas autorizadas y el aviso de pagos de pruebas. Ejecuta `npm run check:mac-release` para comprobar los requisitos de firma y notarización. Con un DMG previamente firmado con Developer ID, `GLU_NOTARY_PROFILE=perfil node scripts/notarize-mac.mjs ruta/Glu.dmg` envía, adjunta y valida el ticket. El actualizador firmado permanece pendiente. Consulta [Estado de lanzamiento](LANZAMIENTO_SAAS.md).

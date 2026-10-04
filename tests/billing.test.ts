@@ -1,3 +1,4 @@
+import { operationsHandler } from '../supabase/functions/_shared/operations-admin';
 import { before, beforeEach, after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -104,13 +105,25 @@ before(async () => {
       'utf8',
     ),
   );
+  await pg.exec(
+    await readFile(
+      new URL('../supabase/migrations/202610040002_processing.sql', import.meta.url),
+      'utf8',
+    ),
+  );
+  await pg.exec(
+    await readFile(
+      new URL('../supabase/migrations/202610040003_operations.sql', import.meta.url),
+      'utf8',
+    ),
+  );
 });
 after(async () => {
   await pg.close();
 });
 beforeEach(async () => {
   await pg.exec(
-    'truncate public.service_requests, public.service_consumption, public.billing_accounts, public.billing_subscriptions, public.billing_usage, public.billing_events, public.billing_locks cascade',
+    'truncate public.operator_accounts, public.operational_alerts, public.service_requests, public.service_consumption, public.billing_accounts, public.billing_subscriptions, public.billing_usage, public.billing_events, public.billing_locks cascade',
   );
   subscriptions = [];
   checkoutCalls = [];
@@ -284,6 +297,9 @@ test('Billing endpoints reject missing/invalid sessions and disallowed origins',
   assert.equal((await billingHandler(r)(bad)).status, 403);
 });
 test('Checkout uses server prices and authenticated customer, reuses open sessions', async () => {
+  r.config.paymentMode = 'test';
+  const status = await billingHandler(r)(request({ action: 'status', paymentMode: 'live' }));
+  assert.equal((await status.json()).paymentMode, 'test');
   const body = {
     action: 'checkout',
     plan: 'pro',
@@ -589,4 +605,200 @@ test('Managed transcription measures fixed PCM bytes, applies the plan and never
   });
   assert.equal((await transcriptionHandler(r)(malformed)).status, 415);
   assert.equal(providerCalls, 1);
+});
+
+test('A lost response is recovered by its owner without another provider call or quota reservation', async () => {
+  await subscriber();
+  const result = {
+    candidates: [{ content: { parts: [{ text: '{"title":"Guardado"}' }] } }],
+    usageMetadata: { totalTokenCount: 42 },
+  };
+  r.fetch = async () => {
+    providerCalls++;
+    return Response.json(result);
+  };
+  const id = crypto.randomUUID();
+  const call = (data: any = { feature: 'summary', payload }, token = 'token-a') => {
+    const req = request(data, token);
+    req.headers.set('x-request-id', id);
+    return paidAIHandler(r)(req);
+  };
+  const first = await call();
+  assert.equal(first.status, 200);
+  assert.deepEqual(await first.json(), result);
+  const recovered = await call();
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), result);
+  assert.equal(providerCalls, 1);
+  assert.equal(
+    Number((await pg.query('select tokens from service_consumption')).rows[0]?.tokens),
+    42,
+  );
+  assert.equal(
+    (await call({ feature: 'summary', payload: { ...payload, title: 'Otro contenido' } })).status,
+    409,
+  );
+  const other = await call(undefined, 'token-b');
+  assert.notEqual(other.status, 200);
+  await pg.exec(`set role authenticated;set request.jwt.claim.sub='${A}';`);
+  try {
+    await assert.rejects(pg.query('select * from service_results'));
+  } finally {
+    await pg.exec('reset role');
+  }
+  await pg.query("update service_results set expires_at=now()-interval '1 second' where id=$1", [
+    id,
+  ]);
+  const expired = await call();
+  assert.equal(expired.status, 410);
+  assert.equal(providerCalls, 1);
+});
+
+test('Concurrent requests report running; an interrupted operation is never blindly sent again', async () => {
+  await subscriber();
+  let release!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started!: () => void;
+  const reached = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  r.fetch = async () => {
+    providerCalls++;
+    started();
+    await waiting;
+    return Response.json({ candidates: [] });
+  };
+  const id = crypto.randomUUID();
+  const call = () => {
+    const req = request({ feature: 'summary', payload });
+    req.headers.set('x-request-id', id);
+    return paidAIHandler(r)(req);
+  };
+  const first = call();
+  await reached;
+  assert.equal((await call()).status, 202);
+  await pg.query("update service_requests set created_at=now()-interval '6 minutes' where id=$1", [
+    id,
+  ]);
+  const unknown = await call();
+  assert.equal(unknown.status, 409);
+  assert.equal((await unknown.json()).code, 'operation_unknown');
+  assert.equal(providerCalls, 1);
+  release();
+  assert.equal((await first).status, 200);
+});
+
+test('Transcription results survive lost delivery and are bound to audio bytes and language', async () => {
+  await subscriber();
+  r.config.deepgramKey = 'server-deepgram';
+  const result = {
+    results: { utterances: [{ speaker: 0, start: 0, end: 1, transcript: 'Hola' }] },
+  };
+  r.fetch = async () => {
+    providerCalls++;
+    return Response.json(result);
+  };
+  const id = crypto.randomUUID();
+  const call = (audio = new Uint8Array(32000), language = 'es') =>
+    transcriptionHandler(r)(
+      new Request(`https://edge.example/transcribe?language=${language}`, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer token-a',
+          'content-type': 'application/octet-stream',
+          'x-request-id': id,
+        },
+        body: audio,
+      }),
+    );
+  assert.equal((await call()).status, 200);
+  const recovered = await call();
+  assert.deepEqual(await recovered.json(), result);
+  assert.equal(providerCalls, 1);
+  assert.equal((await call(new Uint8Array(64000))).status, 409);
+  assert.equal((await call(undefined, 'en')).status, 409);
+  assert.equal(
+    Number(
+      (await pg.query('select audio_seconds from service_consumption')).rows[0]?.audio_seconds,
+    ),
+    1,
+  );
+});
+
+test('Uncertain provider delivery and a failed result commit do not allow a fresh paid operation', async () => {
+  await subscriber();
+  r.fetch = async () => {
+    providerCalls++;
+    throw new Error('connection dropped');
+  };
+  const id = crypto.randomUUID();
+  const call = () => {
+    const req = request({ feature: 'summary', payload });
+    req.headers.set('x-request-id', id);
+    return paidAIHandler(r)(req);
+  };
+  const failed = await call();
+  const body = await failed.json();
+  assert.equal(body.retryable, false);
+  assert.equal(body.code, 'operation_unknown');
+  const retry = await call();
+  assert.equal((await retry.json()).newOperation, false);
+  assert.equal(providerCalls, 1);
+  const id2 = crypto.randomUUID();
+  const rpc = r.db.rpc.bind(r.db);
+  r.db.rpc = (async (name: string, args: any) =>
+    name === 'finish_service_operation'
+      ? { error: { message: 'database down' }, data: null }
+      : rpc(name, args)) as any;
+  r.fetch = async () => {
+    providerCalls++;
+    return Response.json({ candidates: [] });
+  };
+  const req = request({ feature: 'summary', payload });
+  req.headers.set('x-request-id', id2);
+  assert.equal((await paidAIHandler(r)(req)).status, 503);
+  const duplicate = request({ feature: 'summary', payload });
+  duplicate.headers.set('x-request-id', id2);
+  assert.equal((await paidAIHandler(r)(duplicate)).status, 202);
+  assert.equal(providerCalls, 2);
+});
+
+test('Operations data and acknowledgement require explicit server-provisioned operator access', async () => {
+  const handler = operationsHandler(r);
+  assert.equal((await handler(request({ action: 'snapshot' }, 'forged'))).status, 401);
+  assert.equal((await handler(request({ action: 'snapshot' }))).status, 403);
+  await pg.query('insert into operator_accounts(user_id) values($1)', [A]);
+  await subscriber();
+  const pending = request({ feature: 'summary', payload });
+  pending.headers.set('x-request-id', crypto.randomUUID());
+  r.fetch = async () => {
+    throw new Error('lost provider response');
+  };
+  await paidAIHandler(r)(pending);
+  await pg.exec(
+    "update service_requests set status='pending',created_at=now()-interval '10 minutes';",
+  );
+  const response = await handler(request({ action: 'snapshot' }));
+  assert.equal(response.status, 200);
+  const snapshot = await response.json();
+  assert.equal(snapshot.alerts[0].key, 'interrupted_operations');
+  assert.equal(snapshot.accounts[0].estimatedCostUSD, null);
+  assert.equal(snapshot.requests[0].status, 'pending');
+  assert.equal((await handler(request({ action: 'snapshot' }, 'token-b'))).status, 403);
+  assert.equal(
+    (await handler(request({ action: 'acknowledge', key: 'interrupted_operations' }))).status,
+    200,
+  );
+  assert.equal((await handler(request({ action: 'acknowledge', key: 'not-valid' }))).status, 400);
+  await pg.exec(`set role authenticated;set request.jwt.claim.sub='${B}';`);
+  try {
+    assert.equal((await pg.query('select * from operator_accounts')).rows.length, 0);
+    await assert.rejects(pg.query('insert into operator_accounts(user_id) values($1)', [B]));
+    await assert.rejects(pg.query('select operations_snapshot($1)', [A]));
+    await assert.rejects(pg.query('select * from operational_alerts'));
+  } finally {
+    await pg.exec('reset role');
+  }
 });

@@ -76,7 +76,9 @@ test('Provider failure preserves transcript and permits retry without synthetic 
   await expect(page.locator('.transcript-lines')).toContainText(
     'Ana: enviaré la propuesta el viernes.',
   );
-  await expect(page.getByRole('button', { name: 'Generar resumen', exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Reanudar procesamiento', exact: true }),
+  ).toBeEnabled();
 });
 test('Microphone capture pauses the timer, saves actual media and recovers without API keys', async ({
   page,

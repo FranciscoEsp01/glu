@@ -43,6 +43,17 @@ export function App() {
     void s.initialize();
   }, []);
   useEffect(() => {
+    if (!s.initialized || !account.active) return;
+    const run = () => void useMeetingStore.getState().runProcessingJobs();
+    run();
+    const timer = setInterval(run, 2000);
+    window.addEventListener('online', run);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('online', run);
+    };
+  }, [s.initialized, account.active]);
+  useEffect(() => {
     const mq = matchMedia('(prefers-color-scheme: dark)');
     const apply = () =>
       document.documentElement.classList.toggle(

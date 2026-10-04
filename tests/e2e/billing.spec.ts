@@ -5,10 +5,16 @@ test('Free user sees server prices and can prepare a Stripe checkout without gra
   page,
 }) => {
   const state = billingState('free');
+  state.paymentMode = 'test';
   const calls = await mockBilling(page, state);
   await page.goto('/');
   await page.getByRole('button', { name: /Plan y facturación/ }).click();
   await expect(page.getByText('Plan actual: Gratis')).toBeVisible();
+  await expect(
+    page.getByText(
+      'Stripe está en modo de pruebas. Los pagos de este entorno no cobran dinero real.',
+    ),
+  ).toBeVisible();
   await expect(page.locator('.billing-price').filter({ hasText: '15,00 USD' })).toBeVisible();
   await expect(page.locator('.billing-price').filter({ hasText: '25,00 USD' })).toBeVisible();
   await page.screenshot({ path: 'test-results/glu-billing.png', fullPage: true });

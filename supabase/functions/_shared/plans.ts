@@ -61,6 +61,7 @@ export function billingNotice(subscriptions: SubscriptionSnapshot[]) {
   return '';
 }
 export interface BillingStatus {
+  paymentMode?: 'test' | 'live';
   plan: Plan;
   subscriptions: SubscriptionSnapshot[];
   used: number;

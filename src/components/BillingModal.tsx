@@ -88,6 +88,11 @@ export function BillingModal() {
           disponibles en todos los planes.
         </p>
         {b.loading && <p role="status">Consultando tu suscripción…</p>}
+        {status?.paymentMode === 'test' && (
+          <p className="notice" role="status">
+            Stripe está en modo de pruebas. Los pagos de este entorno no cobran dinero real.
+          </p>
+        )}
         {(error || b.error) && (
           <p className="notice error-notice" role="alert">
             {error || b.error}

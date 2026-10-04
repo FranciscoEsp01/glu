@@ -9,7 +9,10 @@ export function backupHistory(meetings: Meeting[]) {
       version: 1,
       exportedAt: new Date().toISOString(),
       includesAudio: false,
-      meetings: meetings.map(({ audioUrl: _url, ...m }) => ({ ...m, hasAudio: false })),
+      meetings: meetings.map(({ audioUrl: _url, processingJob: _job, ...m }) => ({
+        ...m,
+        hasAudio: false,
+      })),
     },
     null,
     2,

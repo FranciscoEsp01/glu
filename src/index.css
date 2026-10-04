@@ -1352,6 +1352,31 @@ summary span {
   width: min(950px, 95vw);
   max-width: 950px;
 }
+.operations-modal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 16px 0;
+}
+.operations-modal th,
+.operations-modal td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.operations-modal th {
+  color: var(--muted);
+}
+.operations-modal h3 {
+  margin-top: 24px;
+}
+.operations-modal > button,
+.operations-modal .notice button {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
 .billing-current {
   display: flex;
   gap: 16px;

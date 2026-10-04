@@ -1,12 +1,17 @@
-import { auth, supabaseUrl } from './auth';
+import { processingRequest } from './processing-request';
 import { parseTranscript } from './aiService';
 import type { TranscriptSegment } from '../types/meeting';
 
 export async function managedTranscription(
   blob: Blob,
   language: 'es' | 'en',
+  checkpoint?: {
+    nextChunk: number;
+    partial: TranscriptSegment[];
+    requestId: () => Promise<string>;
+    save: (nextChunk: number, totalChunks: number, partial: TranscriptSegment[]) => Promise<void>;
+  },
 ): Promise<TranscriptSegment[]> {
-  if (!auth || !supabaseUrl) throw new Error('Inicia sesión para transcribir.');
   if (blob.size > 100_000_000)
     throw new Error('El audio supera 100 MB. Divide la grabación antes de transcribir.');
   const context = new AudioContext();
@@ -25,37 +30,24 @@ export async function managedTranscription(
   source.connect(offline.destination);
   source.start();
   const samples = (await offline.startRendering()).getChannelData(0);
-  const transcript: TranscriptSegment[] = [];
-  for (let offset = 0; offset < samples.length; offset += sampleRate * 300) {
+  const transcript: TranscriptSegment[] = [...(checkpoint?.partial || [])];
+  const totalChunks = Math.ceil(samples.length / (sampleRate * 300));
+  for (
+    let offset = (checkpoint?.nextChunk || 0) * sampleRate * 300;
+    offset < samples.length;
+    offset += sampleRate * 300
+  ) {
     const part = samples.subarray(offset, Math.min(samples.length, offset + sampleRate * 300));
     const bytes = new Uint8Array(part.length * 2);
     const view = new DataView(bytes.buffer);
     for (let i = 0; i < part.length; i++)
       view.setInt16(i * 2, Math.max(-32768, Math.min(32767, Math.round(part[i] * 32767))), true);
-    const { data, error } = await auth.getSession();
-    if (error || !data.session) throw new Error('Tu sesión finalizó. Vuelve a iniciar sesión.');
-    const response = await fetch(`${supabaseUrl}/functions/v1/transcribe?language=${language}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${data.session.access_token}`,
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        'Content-Type': 'application/octet-stream',
-        'x-request-id': crypto.randomUUID(),
-      },
-      body: bytes,
-      signal: AbortSignal.timeout(110000),
-    }).catch(() => {
-      throw new Error('No pudimos conectar con la transcripción de Glu. El audio se conserva.');
-    });
-    window.dispatchEvent(new Event('glu-billing-refresh'));
-    const result = await response.json().catch(() => null);
-    if (!response.ok) {
-      if (response.status === 402 || response.status === 429)
-        window.dispatchEvent(new Event('glu-billing-required'));
-      throw new Error(
-        result?.error || 'No pudimos conectar con la transcripción de Glu. El audio se conserva.',
-      );
-    }
+    const result = await processingRequest(
+      'transcribe',
+      bytes,
+      (await checkpoint?.requestId()) || crypto.randomUUID(),
+      language,
+    );
     const timeOffset = offset / sampleRate;
     transcript.push(
       ...parseTranscript(result).map((s, i) => ({
@@ -68,6 +60,9 @@ export async function managedTranscription(
             : s.speaker,
       })),
     );
+    await checkpoint?.save(Math.floor(offset / (sampleRate * 300)) + 1, totalChunks, [
+      ...transcript,
+    ]);
   }
   if (!transcript.length) throw new Error('No se detectó voz. El audio se conserva.');
   return transcript;

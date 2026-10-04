@@ -27,6 +27,7 @@ export function runtime(): Runtime {
       auth: { persistSession: false, autoRefreshToken: false },
     }),
     config: {
+      paymentMode: required('STRIPE_SECRET_KEY').startsWith('sk_live_') ? 'live' : 'test',
       proPrice,
       plusPrice,
       returnUrl,

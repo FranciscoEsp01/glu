@@ -1,6 +1,6 @@
 [package]
 name = "glu-meeting-ai"
-version = "0.6.1"
+version = "0.8.0"
 description = "Glu — Asistente de reuniones"
 authors = ["Francisco Espinoza"]
 edition = "2021"

@@ -3,7 +3,7 @@ import { desktop, invoke } from '../lib/platform';
 export type { BillingStatus, PaidFeature, Plan } from '../../supabase/functions/_shared/plans';
 export { PLANS, billingNotice } from '../../supabase/functions/_shared/plans';
 export async function billingRequest<T>(
-  endpoint: 'billing' | 'paid-ai',
+  endpoint: 'billing' | 'paid-ai' | 'operations-admin',
   body: Record<string, unknown>,
 ): Promise<T> {
   if (!auth) throw new Error('Inicia sesión para gestionar tu plan.');

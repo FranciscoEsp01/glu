@@ -23,7 +23,7 @@ El código está integrado, pero **no cobra ni opera contra una cuenta Stripe re
 
 La transcripción usa la clave Deepgram de Glu en el servidor. Pro incluye 300 minutos y 2 millones de tokens al mes; Plus incluye 1500 minutos y 10 millones de tokens. Resúmenes y preguntas comparten las cuotas de solicitudes existentes. Consulta `BACKEND_CONSUMO.md` para el registro y sus límites.
 
-Las cuotas son por mes calendario UTC, independientemente del día de renovación de la suscripción. Cada solicitud autorizada que se envía al proveedor consume una unidad, incluso si falla o devuelve una respuesta inválida. Un reintento es una solicitud nueva. No se cobran excedentes automáticamente. Se limita el cuerpo a 256 KB y la salida a 8192 tokens. Los valores iniciales se definen en `supabase/functions/_shared/plans.ts`; si se amplían por encima de 500, actualiza también el límite de seguridad de la función SQL `reserve_ai_request` mediante una nueva migración.
+Las cuotas son por mes calendario UTC, independientemente del día de renovación de la suscripción. Cada solicitud autorizada que se envía al proveedor consume una unidad, incluso si falla o devuelve una respuesta inválida. Un reintento con otro identificador es una solicitud nueva; recuperar un resultado existente no consume otra cuota. No se cobran excedentes automáticamente. Se limita el cuerpo a 256 KB y la salida a 8192 tokens. Los valores iniciales se definen en `supabase/functions/_shared/plans.ts`; si se amplían por encima de 500, actualiza también el límite de seguridad de la función SQL `reserve_ai_request` mediante una nueva migración.
 
 - `active` y `trialing`, con precio reconocido y período vigente: acceso según plan.
 - Cancelación programada: mantiene acceso hasta el vencimiento; la cuota mensual sigue aplicando.
@@ -31,7 +31,7 @@ Las cuotas son por mes calendario UTC, independientemente del día de renovació
 - Precio desconocido, más de un item, cantidad distinta de uno o período vencido: no conceden acceso premium.
 - Fallo al verificar Stripe: falla de forma cerrada para IA; no se presenta el plan como activo.
 
-El historial, las copias y la exportación no dependen del pago. Ningún webhook elimina reuniones. La nube almacena datos mínimos de facturación y uso; las reuniones siguen locales. Al generar IA, los textos pasan transitoriamente por la Edge Function y Gemini. No se registran textos de reuniones en los logs de los handlers.
+El historial, las copias y la exportación no dependen del pago. Ningún webhook elimina reuniones. La nube almacena datos mínimos de facturación y uso; las reuniones siguen locales. Al generar IA, los textos pasan por la Edge Function y Gemini. Los resultados se conservan temporalmente para recuperación durante 24 horas, con limpieza programada; ver `PROCESAMIENTO_FIABLE.md`. No se registran textos de reuniones en los logs de los handlers.
 
 ## Configurar Stripe
 

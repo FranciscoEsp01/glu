@@ -16,9 +16,9 @@ Además: máximo 10 operaciones/minuto por usuario, dos operaciones pendientes s
 
 ## Medición y autorización
 
-Cada llamada verifica el JWT contra Supabase y reconcilia la suscripción con Stripe. Una reserva atómica en PostgreSQL comprueba plan, solicitudes, tokens, minutos y concurrencia antes de contactar al proveedor. Un `x-request-id` UUID identifica cada operación: repetirlo devuelve 409 y no vuelve a llamar al proveedor. Los reintentos explícitos con otro ID consumen cuota de nuevo.
+Cada llamada verifica el JWT contra Supabase y reconcilia la suscripción con Stripe. Una reserva atómica en PostgreSQL comprueba plan, solicitudes, tokens, minutos y concurrencia antes de contactar al proveedor. Un `x-request-id` UUID identifica cada operación: repetirlo recupera el resultado guardado, devuelve estado en curso (202) o bloquea un resultado incierto; no vuelve a llamar al proveedor. Los reintentos explícitos con otro ID consumen cuota de nuevo.
 
-`service_requests` registra usuario, función, estado, unidades reservadas, tokens reportados, estado HTTP del proveedor y fechas. No almacena audio, transcripciones, prompts, secretos ni respuestas completas. `service_consumption` agrega tokens/minutos por cuenta y mes. RLS permite al usuario leer sus filas; las escrituras y RPC quedan restringidas a service_role.
+`service_requests` registra usuario, función, estado, unidades reservadas, tokens reportados, estado HTTP del proveedor y fechas. El registro de consumo no almacena audio, transcripciones, prompts, secretos ni respuestas completas. La nueva tabla privada `service_results` conserva respuestas durante la ventana de recuperación de 24 horas, con limpieza programada al desplegar (ver `PROCESAMIENTO_FIABLE.md`). `service_consumption` agrega tokens/minutos por cuenta y mes. RLS permite al usuario leer sus filas; las escrituras y RPC quedan restringidas a service_role.
 
 Gemini: se reserva el tamaño UTF-8 del prompt más 8192 tokens, una cota conservadora. Al terminar, `usageMetadata.totalTokenCount` sustituye esa reserva y también se registran prompt/candidates. El total reportado puede incluir pensamiento; no se suma de nuevo. Si falta medición, hay timeout, falla el proveedor o la función se interrumpe, se conserva la reserva completa. No se inventa consumo cero ni se reembolsa automáticamente una llamada cuyo resultado es incierto. Si falla el cierre del registro, el cliente recibe un error y la reserva continúa protegiendo la cuota.
 
@@ -28,7 +28,7 @@ La aplicación muestra solicitudes, minutos y tokens en Plan y facturación. Son
 
 ## Audio y límites prácticos
 
-El cliente admite hasta 100 MB y dos horas para transcribir, y decodifica/remuestrea con Web Audio, también en Mac. Divide audios mayores. La conversión puede necesitar memoria considerable en grabaciones largas; falla conservando el original si el formato no puede decodificarse. La diarización es independiente por bloque, así que los hablantes se etiquetan con su bloque para evitar atribuir identidad entre segmentos. Si una operación falla tras algunos bloques, reintentar vuelve a enviar audio y consume minutos; no se garantiza recuperación de resultados parciales en esta versión.
+El cliente admite hasta 100 MB y dos horas para transcribir, y decodifica/remuestrea con Web Audio, también en Mac. Divide audios mayores. La conversión puede necesitar memoria considerable en grabaciones largas; falla conservando el original si el formato no puede decodificarse. La diarización es independiente por bloque, así que los hablantes se etiquetan con su bloque para evitar atribuir identidad entre segmentos. Los trabajos guardan cada bloque completado y lo omiten al reanudar. La petición interrumpida conserva su identificador para recuperar el resultado sin repetir consumo. Crear una operación nueva tras un fallo confirmado consume minutos nuevamente; ver `PROCESAMIENTO_FIABLE.md`.
 
 ## Activación en Supabase
 

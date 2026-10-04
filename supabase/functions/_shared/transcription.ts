@@ -1,3 +1,4 @@
+import { fingerprint, replay } from './operations.ts';
 import {
   authorizeFeature,
   cors,
@@ -20,15 +21,18 @@ export function transcriptionHandler(r: Runtime) {
       if (!['es', 'en'].includes(language)) throw new HttpError(400, 'Idioma no permitido.');
       if (req.headers.get('content-type') !== 'application/octet-stream')
         throw new HttpError(415, 'Envía audio PCM de 16 bits, mono, a 16 kHz.');
-      if (!r.config.deepgramKey)
-        throw new HttpError(503, 'La transcripción de Glu aún no está configurada.');
       const audio = await readBytes(req, 9_600_000);
       if (!audio.length || audio.length % 2 !== 0) throw new HttpError(400, 'Audio PCM inválido.');
       // Raw fixed-format PCM has a byte-exact duration; no client-reported duration is trusted.
       const seconds = Math.ceil(audio.length / 32000);
-      const plan = await authorizeFeature(r, user.id, 'transcription');
       const id = requestId(req.headers.get('x-request-id'));
-      await reserve(r, user.id, id, 'transcription', plan, 0, seconds);
+      const hash = await fingerprint(audio, 'transcription:' + language);
+      const recovered = await replay(r, user.id, id, hash, headers);
+      if (recovered) return recovered;
+      if (!r.config.deepgramKey)
+        throw new HttpError(503, 'La transcripción de Glu aún no está configurada.');
+      const plan = await authorizeFeature(r, user.id, 'transcription');
+      await reserve(r, user.id, id, 'transcription', plan, 0, seconds, hash);
       let providerStatus: number | undefined;
       let settled = false;
       try {
@@ -52,10 +56,23 @@ export function transcriptionHandler(r: Runtime) {
           );
         const data = await response.json();
         settled = true;
-        await finish(r, user.id, id, true, undefined, providerStatus);
+        await finish(r, user.id, id, true, undefined, providerStatus, data);
         return Response.json(data, { headers });
       } catch (error) {
-        if (!settled) await finish(r, user.id, id, false, undefined, providerStatus);
+        if (!settled) {
+          const canRetry =
+            providerStatus === 429 || (providerStatus !== undefined && providerStatus >= 500);
+          await finish(r, user.id, id, false, undefined, providerStatus, undefined, canRetry);
+          throw new HttpError(
+            502,
+            error instanceof HttpError
+              ? error.message
+              : 'El resultado del proveedor no está confirmado.',
+            canRetry ? 'provider_failed' : 'operation_unknown',
+            canRetry,
+            canRetry,
+          );
+        }
         throw error;
       }
     } catch (error) {

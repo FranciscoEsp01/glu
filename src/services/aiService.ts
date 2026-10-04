@@ -1,3 +1,4 @@
+import { processingRequest } from './processing-request';
 import {
   TemplateType,
   TranscriptSegment,
@@ -6,7 +7,6 @@ import {
   AISettings,
 } from '../types/meeting';
 import { managedTranscription } from './managed-transcription';
-import { billingRequest } from './billing';
 import { escapeHtml } from '../lib/platform';
 export interface GenerateSummaryPayload {
   title: string;
@@ -99,15 +99,20 @@ export class AIService {
   }
   static async processMeeting(
     payload: GenerateSummaryPayload,
-    settings: AISettings,
+    settings: Pick<AISettings, 'preferredLanguage'>,
+    requestId: string = crypto.randomUUID(),
   ): Promise<AISummaryResponse> {
     if (!payload.transcript.length && !payload.manualNotes.trim())
       throw new Error('Añade una transcripción o notas antes de generar el resumen.');
-    const data: any = await billingRequest('paid-ai', {
-      feature: 'summary',
-      payload,
-      language: settings.preferredLanguage,
-    });
+    const data: any = await processingRequest(
+      'paid-ai',
+      JSON.stringify({
+        feature: 'summary',
+        payload,
+        language: settings.preferredLanguage,
+      }),
+      requestId,
+    );
     const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('');
     if (!text) throw new Error('Gemini no devolvió un resumen. Puedes reintentar.');
     return validateSummary(JSON.parse(text));

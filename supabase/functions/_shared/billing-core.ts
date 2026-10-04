@@ -13,6 +13,9 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: string,
+    public retryable = false,
+    public newOperation = false,
   ) {
     super(message);
   }
@@ -30,6 +33,7 @@ export interface Runtime {
     geminiKey: string;
     geminiModel: string;
     deepgramKey?: string;
+    paymentMode?: 'test' | 'live';
   };
   fetch: typeof fetch;
 }
@@ -38,7 +42,7 @@ function checked<T extends { error: unknown }>(result: T): T {
     throw new HttpError(503, 'No pudimos guardar el estado de facturación. Reintenta.');
   return result;
 }
-export function cors(req: Request, runtime: Runtime) {
+export function cors(req: Request, runtime: { config: Pick<Runtime['config'], 'origins'> }) {
   const origin = req.headers.get('origin');
   if (origin && !runtime.config.origins.includes(origin))
     throw new HttpError(403, 'Origen no permitido.');
@@ -86,7 +90,7 @@ export async function readJson(req: Request, limit = 8192): Promise<Record<strin
     throw new HttpError(400, 'Solicitud inválida.');
   }
 }
-export async function requireUser(req: Request, runtime: Runtime) {
+export async function requireUser(req: Request, runtime: Pick<Runtime, 'db'>) {
   const token = req.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
   if (!token) throw new HttpError(401, 'Inicia sesión para continuar.');
   const { data, error } = await runtime.db.auth.getUser(token);
@@ -214,6 +218,7 @@ export async function status(r: Runtime, userId: string) {
   const plan = effectivePlan(subscriptions);
   return {
     plan,
+    paymentMode: r.config.paymentMode,
     subscriptions,
     consumption: {
       tokens: Number(consumption.data?.tokens || 0),
@@ -346,6 +351,9 @@ export function responseError(error: unknown, headers: HeadersInit = {}) {
   // Never disclose Stripe secrets, provider response bodies, or meeting contents.
   return Response.json(
     {
+      code: error instanceof HttpError ? error.code : undefined,
+      retryable: error instanceof HttpError ? error.retryable : false,
+      newOperation: error instanceof HttpError ? error.newOperation : false,
       error:
         error instanceof HttpError
           ? error.message

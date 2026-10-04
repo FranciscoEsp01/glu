@@ -1,3 +1,4 @@
+import { recoverJob } from './processing-state';
 import { accountKey } from './account';
 import { Meeting, AISettings } from '../types/meeting';
 import { desktop, invoke, fileUrl } from '../lib/platform';
@@ -35,6 +36,7 @@ export const storage = {
     return parsed.map((m: Meeting) => ({
       ...m,
       audioUrl: undefined,
+      processingJob: recoverJob(m.processingJob),
       status: m.status === 'recording' || m.status === 'processing' ? 'pending' : m.status,
     }));
   },
